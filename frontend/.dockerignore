@@ -1,0 +1,32 @@
+# Node modules (will be installed in container)
+node_modules
+npm-debug.log*
+
+# Development files
+.git
+.gitignore
+README.md
+.env.local
+.env.development
+
+# Testing
+cypress
+cypress.config.ts
+*.test.*
+*.spec.*
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts (not needed for build context)
+dist
+build
+
+# Logs
+logs
+*.log

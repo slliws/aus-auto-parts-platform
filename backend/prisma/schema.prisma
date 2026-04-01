@@ -1,0 +1,683 @@
+// This is your Prisma schema file for Australian Auto Parts Sales Platform
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum SubscriptionTier {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  SALES
+  VIEWER
+}
+
+enum CustomerType {
+  RETAIL
+  TRADE
+  WHOLESALE
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum OrderStatus {
+  PENDING
+  PICKING
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  STRIPE
+  SQUARE
+}
+
+enum PaymentGateway {
+  MOCK
+  STRIPE
+  SQUARE
+  PAYPAL
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  CHARGEBACK
+  AUTHORIZATION
+  CAPTURE
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REVERSED
+}
+
+enum ShipmentStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+enum ShipmentProvider {
+  AUSTRALIA_POST
+  STARTRACK
+  SENDLE
+  FASTWAY
+}
+
+enum PartCondition {
+  NEW
+  USED_EXCELLENT
+  USED_GOOD
+  USED_FAIR
+  RECONDITIONED
+  DAMAGED
+}
+
+enum CommunicationType {
+  EMAIL
+  PHONE
+  SMS
+  IN_PERSON
+  ONLINE_CHAT
+}
+
+enum WarrantyClaimStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+// ============================================================================
+// CORE TABLES
+// ============================================================================
+
+model Tenant {
+  id                String           @id @default(uuid()) @db.Uuid
+  name              String           @db.VarChar(255)
+  abn               String?          @unique @db.VarChar(14) // Australian Business Number (XX XXX XXX XXX)
+  email             String           @db.VarChar(255)
+  phone             String?          @db.VarChar(20)
+  address           String?          @db.Text
+  subscription_tier SubscriptionTier @default(BASIC)
+  is_active         Boolean          @default(true)
+  trial_ends_at     DateTime?        @db.Timestamptz(6)
+  created_at        DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime         @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  users                  User[]
+  customers              Customer[]
+  vehicles               Vehicle[]
+  parts                  Part[]
+  quotes                 Quote[]
+  orders                 Order[]
+  payments               Payment[]
+  customer_payment_methods CustomerPaymentMethod[]
+  transactions           Transaction[]
+  shipments              Shipment[]
+  communications         Communication[]
+  audit_logs             AuditLog[]
+  suppliers              Supplier[]
+  warranty_claims        WarrantyClaim[]
+  refresh_tokens         RefreshToken[]
+
+  @@index([subscription_tier])
+  @@index([is_active])
+}
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String   @db.Uuid
+  email          String   @unique @db.VarChar(255)
+  password_hash  String   @db.VarChar(255)
+  first_name     String   @db.VarChar(100)
+  last_name      String   @db.VarChar(100)
+  role           UserRole @default(VIEWER)
+  is_active      Boolean  @default(true)
+  email_verified Boolean  @default(false)
+  last_login_at  DateTime? @db.Timestamptz(6)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  quotes         Quote[]
+  orders         Order[]
+  communications Communication[]
+  audit_logs     AuditLog[]
+  refresh_tokens RefreshToken[]
+
+  @@index([tenant_id])
+  @@index([email])
+  @@index([role])
+}
+
+model Customer {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenant_id     String       @db.Uuid
+  customer_type CustomerType @default(RETAIL)
+  first_name    String       @db.VarChar(100)
+  last_name     String       @db.VarChar(100)
+  email         String       @db.VarChar(255)
+  phone         String       @db.VarChar(20)
+  mobile        String?      @db.VarChar(20)
+  abn           String?      @db.VarChar(14) // For trade/wholesale customers
+  company_name  String?      @db.VarChar(255)
+  address       String?      @db.Text
+  suburb        String?      @db.VarChar(100)
+  state         String?      @db.VarChar(3) // NSW, VIC, QLD, etc.
+  postcode      String?      @db.VarChar(4)
+  notes         String?      @db.Text
+  is_active     Boolean      @default(true)
+  created_at    DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime     @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant          Tenant                  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  quotes          Quote[]
+  orders          Order[]
+  payments        Payment[]
+  payment_methods CustomerPaymentMethod[]
+  communications  Communication[]
+  warranty_claims WarrantyClaim[]
+
+  @@index([tenant_id])
+  @@index([email])
+  @@index([customer_type])
+  @@index([postcode])
+  @@index([tenant_id, email])
+}
+
+model Vehicle {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenant_id     String   @db.Uuid
+  vin           String   @unique @db.VarChar(17) // Vehicle Identification Number
+  make          String   @db.VarChar(100)
+  model         String   @db.VarChar(100)
+  year          Int
+  variant       String?  @db.VarChar(100)
+  color         String?  @db.VarChar(50)
+  odometer      Int?     // In kilometers
+  engine_number String?  @db.VarChar(50)
+  date_received DateTime @db.Timestamptz(6)
+  date_stripped DateTime? @db.Timestamptz(6)
+  location      String?  @db.VarChar(100)
+  notes         String?  @db.Text
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  parts  Part[]
+
+  @@index([tenant_id])
+  @@index([vin])
+  @@index([make, model, year])
+}
+
+model Part {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenant_id      String        @db.Uuid
+  vehicle_id     String?       @db.Uuid
+  part_number    String        @db.VarChar(100)
+  name           String        @db.VarChar(255)
+  description    String?       @db.Text
+  category       String        @db.VarChar(100)
+  condition      PartCondition @default(USED_GOOD)
+  cost_price     Decimal       @db.Decimal(10, 2)
+  sell_price     Decimal       @db.Decimal(10, 2)
+  gst_inclusive  Boolean       @default(true)
+  stock_quantity Int           @default(1)
+  location       String?       @db.VarChar(100) // Warehouse location
+  barcode        String?       @unique @db.VarChar(100)
+  weight         Decimal?      @db.Decimal(8, 2) // In kilograms
+  dimensions     String?       @db.VarChar(100) // L x W x H in cm
+  image_url      String?       @db.VarChar(500)
+  notes          String?       @db.Text
+  is_available   Boolean       @default(true)
+  created_at     DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime      @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant          Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  vehicle         Vehicle?          @relation(fields: [vehicle_id], references: [id], onDelete: SetNull)
+  quote_items     QuoteItem[]
+  order_items     OrderItem[]
+  warranty_claims WarrantyClaim[]
+
+  @@index([tenant_id])
+  @@index([vehicle_id])
+  @@index([part_number])
+  @@index([category])
+  @@index([barcode])
+  @@index([tenant_id, is_available, category])
+}
+
+// ============================================================================
+// COMMERCE TABLES
+// ============================================================================
+
+model Quote {
+  id              String      @id @default(uuid()) @db.Uuid
+  tenant_id       String      @db.Uuid
+  customer_id     String      @db.Uuid
+  user_id         String      @db.Uuid // Sales person who created the quote
+  quote_number    String      @unique @db.VarChar(50)
+  status          QuoteStatus @default(DRAFT)
+  subtotal_amount Decimal     @db.Decimal(10, 2)
+  gst_amount      Decimal     @db.Decimal(10, 2)
+  total_amount    Decimal     @db.Decimal(10, 2)
+  notes           String?     @db.Text
+  terms           String?     @db.Text
+  expires_at      DateTime    @db.Timestamptz(6) // Default 7 days from creation
+  sent_at         DateTime?   @db.Timestamptz(6)
+  accepted_at     DateTime?   @db.Timestamptz(6)
+  created_at      DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime    @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  customer    Customer    @relation(fields: [customer_id], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  quote_items QuoteItem[]
+  orders      Order[]
+
+  @@index([tenant_id])
+  @@index([customer_id])
+  @@index([quote_number])
+  @@index([status])
+  @@index([expires_at])
+}
+
+model QuoteItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  quote_id    String  @db.Uuid
+  part_id     String  @db.Uuid
+  quantity    Int     @default(1)
+  unit_price  Decimal @db.Decimal(10, 2)
+  gst_amount  Decimal @db.Decimal(10, 2)
+  total_price Decimal @db.Decimal(10, 2)
+  notes       String? @db.Text
+
+  // Relations
+  quote Quote @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+  part  Part  @relation(fields: [part_id], references: [id], onDelete: Restrict)
+
+  @@index([quote_id])
+  @@index([part_id])
+}
+
+model Order {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenant_id       String        @db.Uuid
+  customer_id     String        @db.Uuid
+  user_id         String        @db.Uuid // Sales person who processed the order
+  quote_id        String?       @db.Uuid // If converted from quote
+  order_number    String        @unique @db.VarChar(50)
+  status          OrderStatus   @default(PENDING)
+  payment_status  PaymentStatus @default(PENDING)
+  subtotal_amount Decimal       @db.Decimal(10, 2)
+  gst_amount      Decimal       @db.Decimal(10, 2)
+  total_amount    Decimal       @db.Decimal(10, 2)
+  notes           String?       @db.Text
+  internal_notes  String?       @db.Text
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  customer    Customer    @relation(fields: [customer_id], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  quote       Quote?      @relation(fields: [quote_id], references: [id], onDelete: SetNull)
+  order_items OrderItem[]
+  payments    Payment[]
+  shipments   Shipment[]
+
+  @@index([tenant_id])
+  @@index([customer_id])
+  @@index([order_number])
+  @@index([status])
+  @@index([payment_status])
+  @@index([tenant_id, payment_status, status])
+}
+
+model OrderItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  order_id    String  @db.Uuid
+  part_id     String  @db.Uuid
+  quantity    Int     @default(1)
+  unit_price  Decimal @db.Decimal(10, 2)
+  gst_amount  Decimal @db.Decimal(10, 2)
+  total_price Decimal @db.Decimal(10, 2)
+  notes       String? @db.Text
+
+  // Relations
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  part  Part  @relation(fields: [part_id], references: [id], onDelete: Restrict)
+
+  @@index([order_id])
+  @@index([part_id])
+}
+
+// ============================================================================
+// FINANCE TABLES
+// ============================================================================
+
+model Payment {
+  id                String         @id @default(uuid()) @db.Uuid
+  tenant_id         String         @db.Uuid
+  order_id          String         @db.Uuid
+  customer_id       String         @db.Uuid
+  payment_method_id String?        @db.Uuid // Reference to saved payment method
+  payment_method    PaymentMethod
+  payment_gateway   PaymentGateway @default(MOCK)
+  payment_status    PaymentStatus  @default(PENDING)
+  amount            Decimal        @db.Decimal(10, 2)
+  currency          String         @default("AUD") @db.VarChar(3)
+  gateway_payment_id String?       @unique @db.VarChar(255) // External payment ID from gateway
+  reference_number  String?        @db.VarChar(100)
+  payment_date      DateTime?      @db.Timestamptz(6)
+  metadata          Json?          // Additional payment metadata
+  notes             String?        @db.Text
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant              Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  order               Order                  @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  customer            Customer               @relation(fields: [customer_id], references: [id], onDelete: Restrict)
+  saved_payment_method CustomerPaymentMethod? @relation(fields: [payment_method_id], references: [id], onDelete: SetNull)
+  transactions        Transaction[]
+
+  @@index([tenant_id])
+  @@index([order_id])
+  @@index([customer_id])
+  @@index([payment_status])
+  @@index([gateway_payment_id])
+  @@index([payment_method_id])
+}
+
+model CustomerPaymentMethod {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenant_id       String        @db.Uuid
+  customer_id     String        @db.Uuid
+  payment_method  PaymentMethod
+  payment_gateway PaymentGateway
+  is_default      Boolean       @default(false)
+  
+  // Card details (tokenized)
+  card_last_four  String?       @db.VarChar(4)
+  card_brand      String?       @db.VarChar(50) // Visa, Mastercard, etc.
+  card_expiry_month Int?
+  card_expiry_year  Int?
+  
+  // Bank transfer details
+  bank_name       String?       @db.VarChar(100)
+  account_name    String?       @db.VarChar(255)
+  bsb             String?       @db.VarChar(7) // Australian BSB format XXX-XXX
+  account_number_last_four String? @db.VarChar(4)
+  
+  // Gateway token (encrypted)
+  gateway_token   String?       @db.VarChar(500) // Stripe/Square payment method token
+  
+  billing_name    String?       @db.VarChar(255)
+  billing_email   String?       @db.VarChar(255)
+  billing_address String?       @db.Text
+  
+  is_active       Boolean       @default(true)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  customer Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([tenant_id])
+  @@index([customer_id])
+  @@index([is_default])
+}
+
+model Transaction {
+  id                  String            @id @default(uuid()) @db.Uuid
+  tenant_id           String            @db.Uuid
+  payment_id          String            @db.Uuid
+  transaction_type    TransactionType
+  transaction_status  TransactionStatus @default(PENDING)
+  amount              Decimal           @db.Decimal(10, 2)
+  currency            String            @default("AUD") @db.VarChar(3)
+  gateway_transaction_id String?        @unique @db.VarChar(255)
+  
+  // Authorization & capture details
+  authorization_code  String?           @db.VarChar(100)
+  captured_amount     Decimal?          @db.Decimal(10, 2)
+  
+  // Refund details
+  refund_reason       String?           @db.Text
+  original_transaction_id String?       @db.Uuid // For refunds, link to original payment transaction
+  
+  // Error handling
+  error_code          String?           @db.VarChar(100)
+  error_message       String?           @db.Text
+  
+  // Gateway response
+  gateway_response    Json?             // Full gateway response for debugging
+  
+  processed_at        DateTime?         @db.Timestamptz(6)
+  created_at          DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime          @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant  Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Restrict)
+  original_transaction Transaction? @relation("RefundRelation", fields: [original_transaction_id], references: [id], onDelete: SetNull)
+  refund_transactions  Transaction[] @relation("RefundRelation")
+
+  @@index([tenant_id])
+  @@index([payment_id])
+  @@index([transaction_type])
+  @@index([transaction_status])
+  @@index([gateway_transaction_id])
+  @@index([original_transaction_id])
+}
+
+model Shipment {
+  id                String           @id @default(uuid()) @db.Uuid
+  tenant_id         String           @db.Uuid
+  order_id          String           @db.Uuid
+  provider          ShipmentProvider
+  tracking_number   String?          @db.VarChar(100)
+  status            ShipmentStatus   @default(PENDING)
+  shipping_address  String           @db.Text
+  suburb            String           @db.VarChar(100)
+  state             String           @db.VarChar(3)
+  postcode          String           @db.VarChar(4)
+  weight            Decimal?         @db.Decimal(8, 2) // In kilograms
+  shipping_cost     Decimal?         @db.Decimal(10, 2)
+  shipped_at        DateTime?        @db.Timestamptz(6)
+  delivered_at      DateTime?        @db.Timestamptz(6)
+  estimated_delivery DateTime?       @db.Timestamptz(6)
+  notes             String?          @db.Text
+  created_at        DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime         @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [order_id], references: [id], onDelete: Restrict)
+
+  @@index([tenant_id])
+  @@index([order_id])
+  @@index([tracking_number])
+  @@index([status])
+}
+
+// ============================================================================
+// SUPPORT TABLES
+// ============================================================================
+
+model Communication {
+  id              String            @id @default(uuid()) @db.Uuid
+  tenant_id       String            @db.Uuid
+  customer_id     String            @db.Uuid
+  user_id         String?           @db.Uuid // Staff member who handled it
+  type            CommunicationType
+  subject         String?           @db.VarChar(255)
+  content         String            @db.Text
+  direction       String            @db.VarChar(20) // INBOUND or OUTBOUND
+  contact_method  String?           @db.VarChar(100) // Email address or phone number used
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Restrict)
+  user     User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([customer_id])
+  @@index([type])
+  @@index([created_at])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenant_id     String   @db.Uuid
+  user_id       String?  @db.Uuid
+  action        String   @db.VarChar(100) // CREATE, UPDATE, DELETE, etc.
+  resource_type String   @db.VarChar(100) // Table name
+  resource_id   String   @db.Uuid
+  changes       Json?    // JSON of what changed
+  ip_address    String?  @db.VarChar(45)
+  user_agent    String?  @db.VarChar(500)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  // Relations
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([resource_type, resource_id])
+  @@index([action])
+  @@index([created_at])
+}
+
+model Supplier {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenant_id    String   @db.Uuid
+  name         String   @db.VarChar(255)
+  abn          String?  @db.VarChar(14)
+  email        String   @db.VarChar(255)
+  phone        String   @db.VarChar(20)
+  address      String?  @db.Text
+  suburb       String?  @db.VarChar(100)
+  state        String?  @db.VarChar(3)
+  postcode     String?  @db.VarChar(4)
+  contact_name String?  @db.VarChar(100)
+  notes        String?  @db.Text
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([email])
+}
+
+model WarrantyClaim {
+  id               String               @id @default(uuid()) @db.Uuid
+  tenant_id        String               @db.Uuid
+  customer_id      String               @db.Uuid
+  part_id          String               @db.Uuid
+  claim_number     String               @unique @db.VarChar(50)
+  status           WarrantyClaimStatus  @default(SUBMITTED)
+  issue_description String              @db.Text
+  warranty_period  Int                  // In months (minimum 6 for ACL compliance)
+  purchase_date    DateTime             @db.Timestamptz(6)
+  claim_date       DateTime             @db.Timestamptz(6)
+  resolution       String?              @db.Text
+  resolved_at      DateTime?            @db.Timestamptz(6)
+  notes            String?              @db.Text
+  created_at       DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime             @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Restrict)
+  part     Part     @relation(fields: [part_id], references: [id], onDelete: Restrict)
+
+  @@index([tenant_id])
+  @@index([customer_id])
+  @@index([claim_number])
+  @@index([status])
+}
+
+// ============================================================================
+// AUTHENTICATION TABLES
+// ============================================================================
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenant_id  String   @db.Uuid
+  user_id    String   @db.Uuid
+  token      String   @unique @db.VarChar(500)
+  jti        String   @unique @db.Uuid // JWT ID for revocation
+  expires_at DateTime @db.Timestamptz(6)
+  revoked    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  @@index([tenant_id])
+  @@index([user_id])
+  @@index([jti])
+  @@map("refresh_tokens")
+}
