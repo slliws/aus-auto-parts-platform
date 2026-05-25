@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -25,7 +26,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { AppDispatch } from '../store';
+import { AppDispatch, RootState } from '../store';
 import {
   fetchCustomers,
   deleteCustomer,
@@ -37,6 +38,7 @@ import {
   selectCustomersPagination,
   selectCustomerFilters,
 } from '../store/slices/customersSlice';
+import { selectAuthUser } from '../store/slices/authSlice';
 import { CustomerType } from '../services/customers.service';
 import CustomerFormDialog from '../components/organisms/customers/CustomerFormDialog';
 
@@ -46,11 +48,16 @@ import CustomerFormDialog from '../components/organisms/customers/CustomerFormDi
  */
 const CustomersPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
   const customers = useSelector(selectCustomers);
   const loading = useSelector(selectCustomersLoading);
   const error = useSelector(selectCustomersError);
   const pagination = useSelector(selectCustomersPagination);
   const filters = useSelector(selectCustomerFilters);
+  const currentUser = useSelector((state: RootState) => selectAuthUser(state));
+
+  // Role-based access: only ADMIN/MANAGER can add, edit, or delete
+  const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
   // Local state
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,12 +121,9 @@ const CustomersPage: React.FC = () => {
     setOpenDialog(true);
   };
 
-  // Navigate to view customer
+  // Navigate to customer detail page
   const handleViewCustomer = (customer: any) => {
-    // This will be implemented when we create the customer detail page
-    console.log('View customer', customer);
-    // For now, we'll just alert the user
-    alert(`View Customer functionality will be implemented in the next step. Customer ID: ${customer.id}`);
+    navigate(`/customers/${customer.id}`);
   };
 
   // Handle dialog close
@@ -142,12 +146,14 @@ const CustomersPage: React.FC = () => {
   // Handle delete customer
   const handleDeleteCustomer = async (customerId: string) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
-      await dispatch(deleteCustomer(customerId));
-      dispatch(fetchCustomers({
-        page: pagination.currentPage,
-        limit: pagination.itemsPerPage,
-        filters,
-      }));
+      const result = await dispatch(deleteCustomer(customerId));
+      if (deleteCustomer.fulfilled.match(result)) {
+        dispatch(fetchCustomers({
+          page: pagination.currentPage,
+          limit: pagination.itemsPerPage,
+          filters,
+        }));
+      }
     }
   };
 
@@ -260,22 +266,26 @@ const CustomersPage: React.FC = () => {
           >
             <ViewIcon fontSize="small" />
           </IconButton>
-          <IconButton
-            size="small"
-            color="primary"
-            onClick={() => handleEditCustomer(params.row)}
-            title="Edit"
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            color="error"
-            onClick={() => handleDeleteCustomer(params.row.id)}
-            title="Delete"
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+          {canManage && (
+            <>
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={() => handleEditCustomer(params.row)}
+                title="Edit"
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                color="error"
+                onClick={() => handleDeleteCustomer(params.row.id)}
+                title="Delete"
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </>
+          )}
         </Box>
       ),
     },
@@ -288,14 +298,16 @@ const CustomersPage: React.FC = () => {
         <Typography variant="h4" component="h1">
           Customer Management
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleAddCustomer}
-        >
-          Add New Customer
-        </Button>
+        {canManage && (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleAddCustomer}
+          >
+            Add New Customer
+          </Button>
+        )}
       </Box>
 
       {/* Filters */}
