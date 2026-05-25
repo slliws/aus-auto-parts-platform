@@ -22,7 +22,7 @@ const CustomersPage = lazy(() => import('../pages/CustomersPage'));
 const CustomerDetailPage = lazy(() => import('../pages/CustomerDetailPage'));
 
 // Order pages
-const OrdersPage = lazy(() => import('../pages/PlaceholderPages/OrdersPage'));
+const OrdersPage = lazy(() => import('../pages/OrdersPage'));
 const OrderDetailPage = lazy(() => import('../pages/OrderDetailPage'));
 
 // Vehicle pages
@@ -31,7 +31,7 @@ const VehicleDetailPage = lazy(() => import('../pages/VehicleDetailPage'));
 
 // Other feature pages
 const AnalyticsPage = lazy(() => import('../pages/AnalyticsPage'));
-const QuotesPage = lazy(() => import('../pages/PlaceholderPages/QuotesPage'));
+const QuotesPage = lazy(() => import('../pages/QuotesPage'));
 const QuoteDetailPage = lazy(() => import('../pages/QuoteDetailPage'));
 const ReportsPage = lazy(() => import('../pages/PlaceholderPages/ReportsPage'));
 
