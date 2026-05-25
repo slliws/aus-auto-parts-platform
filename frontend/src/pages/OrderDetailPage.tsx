@@ -18,6 +18,9 @@ import {
   Person as PersonIcon,
   Inventory as InventoryIcon,
 } from '@mui/icons-material';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
+import { selectAuthUser } from '../store/slices/authSlice';
 import apiService from '../services/api.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -136,6 +139,8 @@ const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.
 const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const currentUser = useSelector((state: RootState) => selectAuthUser(state));
+  const canManageOrder = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,10 +223,13 @@ const OrderDetailPage: React.FC = () => {
   if (!order) return null;
 
   const isCancelled = order.status === 'CANCELLED';
-  const totalPaid = order.payments
+  // Use integer cent arithmetic to avoid floating-point accumulation errors
+  const totalPaidCents = order.payments
     .filter(p => p.payment_status === 'COMPLETED')
-    .reduce((s, p) => s + Number(p.amount), 0);
-  const outstanding = Number(order.total_amount) - totalPaid;
+    .reduce((s, p) => s + Math.round(Number(p.amount) * 100), 0);
+  const totalPaid = totalPaidCents / 100;
+  const outstandingCents = Math.round(Number(order.total_amount) * 100) - totalPaidCents;
+  const outstanding = outstandingCents / 100;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -263,14 +271,16 @@ const OrderDetailPage: React.FC = () => {
               >
                 Update Status
               </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<CancelIcon />}
-                onClick={() => setCancelDialog(true)}
-              >
-                Cancel
-              </Button>
+              {canManageOrder && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<CancelIcon />}
+                  onClick={() => setCancelDialog(true)}
+                >
+                  Cancel
+                </Button>
+              )}
             </>
           )}
         </Stack>

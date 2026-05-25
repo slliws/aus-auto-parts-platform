@@ -291,5 +291,7 @@ export const selectAuthLoading = (state: RootState) => state.auth.loading;
 export const selectAuthError = (state: RootState) => state.auth.error;
 export const selectAccessToken = (state: RootState) => state.auth.accessToken;
 export const selectUserRole = (state: RootState) => state.auth.user?.role;
+// Alias — used by VehicleDetailPage, OrderDetailPage, QuoteDetailPage
+export const selectAuthUser = (state: RootState) => state.auth.user;
 
 export default authSlice.reducer;

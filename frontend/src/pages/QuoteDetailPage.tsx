@@ -20,6 +20,9 @@ import {
   Inventory as InventoryIcon,
   CheckCircle as AcceptIcon,
 } from '@mui/icons-material';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
+import { selectAuthUser } from '../store/slices/authSlice';
 import apiService from '../services/api.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -121,6 +124,8 @@ const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.
 const QuoteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const currentUser = useSelector((state: RootState) => selectAuthUser(state));
+  const canManageQuote = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
@@ -290,7 +295,7 @@ const QuoteDetailPage: React.FC = () => {
               Send
             </Button>
           )}
-          {isAccepted && (
+          {isAccepted && canManageQuote && (
             <Button
               variant="contained"
               color="success"
@@ -309,7 +314,7 @@ const QuoteDetailPage: React.FC = () => {
               Update Status
             </Button>
           )}
-          {(isDraft || isSent) && (
+          {(isDraft || isSent) && canManageQuote && (
             <Button
               variant="outlined"
               color="error"
@@ -500,7 +505,7 @@ const QuoteDetailPage: React.FC = () => {
           </Section>
 
           {/* Quick actions callout for accepted quotes */}
-          {isAccepted && (
+          {isAccepted && canManageQuote && (
             <Paper sx={{ p: 2, bgcolor: 'success.50', border: '1px solid', borderColor: 'success.200' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <AcceptIcon color="success" fontSize="small" />
