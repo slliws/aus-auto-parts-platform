@@ -25,9 +25,12 @@ const CustomerDetailPage = lazy(() => import('../pages/CustomerDetailPage'));
 const OrdersPage = lazy(() => import('../pages/PlaceholderPages/OrdersPage'));
 const OrderDetailPage = lazy(() => import('../pages/OrderDetailPage'));
 
+// Vehicle pages
+const VehiclesPage = lazy(() => import('../pages/VehiclesPage'));
+const VehicleDetailPage = lazy(() => import('../pages/VehicleDetailPage'));
+
 // Other feature pages
 const AnalyticsPage = lazy(() => import('../pages/AnalyticsPage'));
-const VehiclesPage = lazy(() => import('../pages/VehiclesPage'));
 const QuotesPage = lazy(() => import('../pages/PlaceholderPages/QuotesPage'));
 const QuoteDetailPage = lazy(() => import('../pages/QuoteDetailPage'));
 const ReportsPage = lazy(() => import('../pages/PlaceholderPages/ReportsPage'));
@@ -72,12 +75,17 @@ const AppRoutes = () => {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
 
-          {/* Other pages */}
+          {/* Vehicles */}
           <Route path="/vehicles" element={<VehiclesPage />} />
+          <Route path="/vehicles/:id" element={<VehicleDetailPage />} />
+
+          {/* Analytics & Reports */}
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+
+          {/* Quotes */}
           <Route path="/quotes" element={<QuotesPage />} />
           <Route path="/quotes/:id" element={<QuoteDetailPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
 
           {/* Legacy marketplace routes */}
           <Route path="/marketplace" element={<MarketplacePage />} />

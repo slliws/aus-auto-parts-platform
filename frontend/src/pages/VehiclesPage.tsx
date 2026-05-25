@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Button, Chip, TextField, InputAdornment,
@@ -6,9 +7,11 @@ import {
 } from '@mui/material';
 import {
   Search as SearchIcon, DirectionsCar as CarIcon,
-  Refresh as RefreshIcon, Build as BuildIcon
+  Refresh as RefreshIcon, Build as BuildIcon,
+  Visibility as ViewIcon, Add as AddIcon
 } from '@mui/icons-material';
-import { fetchVehicles as getVehicles, Vehicle, VehiclesFilters } from '../services/vehicle.service';
+import { fetchVehicles as getVehicles, Vehicle } from '../services/vehicle.service';
+import VehicleFormDialog from '../components/organisms/vehicles/VehicleFormDialog';
 
 const statusColor: Record<string, 'default' | 'warning' | 'info' | 'success' | 'error'> = {
   INTAKE: 'warning',
@@ -18,10 +21,12 @@ const statusColor: Record<string, 'default' | 'warning' | 'info' | 'success' | '
 };
 
 const VehiclesPage: React.FC = () => {
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [intakeOpen, setIntakeOpen] = useState(false);
 
   const load = async () => {
     setLoading(true); setError(null);
@@ -34,6 +39,11 @@ const VehiclesPage: React.FC = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const handleIntakeClose = (created: boolean) => {
+    setIntakeOpen(false);
+    if (created) load();
+  };
 
   const filtered = vehicles.filter(v =>
     [v.make, v.model, String(v.year), v.vin, v.registration_number].join(' ')
@@ -51,18 +61,26 @@ const VehiclesPage: React.FC = () => {
           </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title="Refresh"><IconButton onClick={load}><RefreshIcon /></IconButton></Tooltip>
-          <Button variant="contained" startIcon={<CarIcon />}>Intake Vehicle</Button>
+          <Tooltip title="Refresh">
+            <IconButton onClick={load}><RefreshIcon /></IconButton>
+          </Tooltip>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setIntakeOpen(true)}>
+            Intake Vehicle
+          </Button>
         </Box>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <TextField
-        placeholder="Search by make, model, year, VIN..."
-        value={search} onChange={e => setSearch(e.target.value)}
-        size="small" sx={{ mb: 2, width: 360 }}
-        InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+        placeholder="Search by make, model, year, VIN, rego..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        size="small"
+        sx={{ mb: 2, width: 380 }}
+        InputProps={{
+          startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>
+        }}
       />
 
       <Paper>
@@ -83,35 +101,65 @@ const VehiclesPage: React.FC = () => {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4 }}><CircularProgress /></TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                    <CircularProgress />
+                  </TableCell>
+                </TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={9} align="center" sx={{ py: 4 }}>
-                  <CarIcon sx={{ fontSize: 48, color: 'grey.300', display: 'block', mx: 'auto', mb: 1 }} />
-                  <Typography color="text.secondary">No vehicles found</Typography>
-                </TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                    <CarIcon sx={{ fontSize: 48, color: 'grey.300', display: 'block', mx: 'auto', mb: 1 }} />
+                    <Typography color="text.secondary">No vehicles found</Typography>
+                    <Button
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={() => setIntakeOpen(true)}
+                      sx={{ mt: 2 }}
+                    >
+                      Intake First Vehicle
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ) : filtered.map(v => (
-                <TableRow key={v.id} hover>
+                <TableRow key={v.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/vehicles/${v.id}`)}>
                   <TableCell>
                     <Typography variant="body2" fontWeight="bold">{v.year} {v.make} {v.model}</Typography>
                     {v.color && <Typography variant="caption" color="text.secondary">{v.color}</Typography>}
                   </TableCell>
-                  <TableCell><Typography variant="caption" fontFamily="monospace">{v.vin || '—'}</Typography></TableCell>
+                  <TableCell>
+                    <Typography variant="caption" fontFamily="monospace">{v.vin || '—'}</Typography>
+                  </TableCell>
                   <TableCell>{v.registration_number || '—'}</TableCell>
                   <TableCell>{v.transmission || '—'}</TableCell>
                   <TableCell>{v.fuel_type || '—'}</TableCell>
                   <TableCell>
-                    <Chip label={`${v._count?.parts ?? 0} parts`} size="small" icon={<BuildIcon />} variant="outlined" />
+                    <Chip
+                      label={`${v._count?.parts ?? 0} parts`}
+                      size="small"
+                      icon={<BuildIcon />}
+                      variant="outlined"
+                    />
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={e => e.stopPropagation()}>
                     <Chip
                       label={(v as any).status ?? 'INTAKE'}
                       size="small"
                       color={statusColor[(v as any).status ?? 'INTAKE'] ?? 'default'}
                     />
                   </TableCell>
-                  <TableCell>{v.date_received ? new Date(v.date_received).toLocaleDateString('en-AU') : '—'}</TableCell>
                   <TableCell>
-                    <Button size="small" variant="outlined">View</Button>
+                    {v.date_received ? new Date(v.date_received).toLocaleDateString('en-AU') : '—'}
+                  </TableCell>
+                  <TableCell onClick={e => e.stopPropagation()}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<ViewIcon />}
+                      onClick={() => navigate(`/vehicles/${v.id}`)}
+                    >
+                      View
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -119,6 +167,9 @@ const VehiclesPage: React.FC = () => {
           </Table>
         </TableContainer>
       </Paper>
+
+      {/* Intake vehicle dialog */}
+      <VehicleFormDialog open={intakeOpen} onClose={handleIntakeClose} vehicle={null} />
     </Box>
   );
 };
