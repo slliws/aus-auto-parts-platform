@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Button, Chip, TextField, InputAdornment,
@@ -25,6 +26,7 @@ const STATUS_COLORS: Record<string, any> = {
 };
 
 const QuotesPage: React.FC = () => {
+  const navigate = useNavigate();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +139,7 @@ const QuotesPage: React.FC = () => {
                   <TableCell>{new Date(q.created_at).toLocaleDateString('en-AU')}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <Button size="small" variant="outlined">View</Button>
+                      <Button size="small" variant="outlined" onClick={() => navigate(`/quotes/${q.id}`)}>View</Button>
                       {q.status === 'ACCEPTED' && <Button size="small" variant="contained" color="success">→ Order</Button>}
                     </Box>
                   </TableCell>

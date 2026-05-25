@@ -29,6 +29,7 @@ const OrderDetailPage = lazy(() => import('../pages/OrderDetailPage'));
 const AnalyticsPage = lazy(() => import('../pages/AnalyticsPage'));
 const VehiclesPage = lazy(() => import('../pages/VehiclesPage'));
 const QuotesPage = lazy(() => import('../pages/PlaceholderPages/QuotesPage'));
+const QuoteDetailPage = lazy(() => import('../pages/QuoteDetailPage'));
 const ReportsPage = lazy(() => import('../pages/PlaceholderPages/ReportsPage'));
 
 // Loading component for Suspense fallback
@@ -75,6 +76,7 @@ const AppRoutes = () => {
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/quotes" element={<QuotesPage />} />
+          <Route path="/quotes/:id" element={<QuoteDetailPage />} />
           <Route path="/reports" element={<ReportsPage />} />
 
           {/* Legacy marketplace routes */}
