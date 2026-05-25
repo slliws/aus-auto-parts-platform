@@ -22,7 +22,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  Stack
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -31,7 +32,7 @@ import {
 } from '@mui/icons-material';
 
 import VehicleFormDialog from '../components/organisms/vehicles/VehicleFormDialog';
-import { AppDispatch } from '../store';
+import { AppDispatch, RootState } from '../store';
 import {
   fetchVehicleById,
   selectCurrentVehicle,
@@ -40,6 +41,11 @@ import {
   deleteVehicle
 } from '../store/slices/vehiclesSlice';
 import { Vehicle } from '../services/vehicle.service';
+import { selectAuthUser } from '../store/slices/authSlice';
+
+interface VehicleWithStatus extends Vehicle {
+  status?: 'INTAKE' | 'DISMANTLING' | 'COMPLETE' | 'SOLD';
+}
 
 const statusColor: Record<string, 'default' | 'warning' | 'info' | 'success' | 'error'> = {
   INTAKE: 'warning',
@@ -53,12 +59,14 @@ const VehicleDetailPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const vehicle = useSelector(selectCurrentVehicle);
+  const vehicle = useSelector(selectCurrentVehicle) as VehicleWithStatus | null;
   const loading = useSelector(selectVehiclesLoading);
   const error = useSelector(selectVehiclesError);
+  const currentUser = useSelector((state: RootState) => selectAuthUser(state));
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -75,13 +83,23 @@ const VehicleDetailPage: React.FC = () => {
 
   const handleConfirmDelete = async () => {
     if (id) {
-      await dispatch(deleteVehicle(id));
-      navigate('/vehicles');
+      try {
+        const result = await dispatch(deleteVehicle(id));
+        // Check if delete was successful using the thunk result
+        if (deleteVehicle.fulfilled.match(result)) {
+          navigate('/vehicles');
+        } else {
+          // If delete failed, show error and keep user on page
+          setDeleteError('Failed to delete vehicle. Please try again.');
+        }
+      } catch (err) {
+        setDeleteError('An unexpected error occurred while deleting the vehicle.');
+      }
     }
     setConfirmDelete(false);
   };
 
-  const renderVehicleDetails = (v: Vehicle) => (
+  const renderVehicleDetails = (v: VehicleWithStatus) => (
     <TableContainer component={Paper} elevation={0} variant="outlined">
       <Table>
         <TableBody>
@@ -93,14 +111,14 @@ const VehicleDetailPage: React.FC = () => {
             ['Year', v.year],
             ['Engine', v.engine_number || '—'],
             ['Transmission', v.transmission || '—'],
-            ['Body Type', v.location || '—'],
+            ['Storage Location', v.location || '—'],
             ['Color', v.color || '—'],
             ['Fuel Type', v.fuel_type || '—'],
             ['Status',
               <Chip
-                label={(v as any).status ?? 'INTAKE'}
+                label={v.status ?? 'INTAKE'}
                 size="small"
-                color={statusColor[(v as any).status ?? 'INTAKE'] ?? 'default'}
+                color={statusColor[v.status ?? 'INTAKE'] ?? 'default'}
               />
             ],
           ].map(([label, value]) => (
@@ -146,6 +164,9 @@ const VehicleDetailPage: React.FC = () => {
     );
   }
 
+  // Check if user has permission to delete
+  const canDelete = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -157,11 +178,11 @@ const VehicleDetailPage: React.FC = () => {
           <Typography variant="h5" fontWeight="bold">
             {vehicle.year} {vehicle.make} {vehicle.model}
           </Typography>
-          {(vehicle as any).status && (
+          {vehicle.status && (
             <Chip
-              label={(vehicle as any).status}
+              label={vehicle.status}
               size="small"
-              color={statusColor[(vehicle as any).status] ?? 'default'}
+              color={statusColor[vehicle.status] ?? 'default'}
               sx={{ ml: 2 }}
             />
           )}
@@ -174,9 +195,16 @@ const VehicleDetailPage: React.FC = () => {
             <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setIsFormOpen(true)}>
               Edit
             </Button>
-            <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDelete(true)}>
-              Delete
-            </Button>
+            {canDelete && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete
+              </Button>
+            )}
           </Box>
         </Box>
       </Box>
@@ -248,16 +276,21 @@ const VehicleDetailPage: React.FC = () => {
       <VehicleFormDialog open={isFormOpen} onClose={handleFormClose} vehicle={vehicle} />
 
       {/* Delete confirmation */}
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
+      <Dialog open={confirmDelete} onClose={() => { setConfirmDelete(false); setDeleteError(null); }}>
         <DialogTitle>Delete Vehicle?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete {vehicle.year} {vehicle.make} {vehicle.model}?
-            This action cannot be undone.
-          </DialogContentText>
+          <Stack spacing={2}>
+            {deleteError && (
+              <Alert severity="error">{deleteError}</Alert>
+            )}
+            <DialogContentText>
+              Are you sure you want to delete {vehicle.year} {vehicle.make} {vehicle.model}?
+              This action cannot be undone.
+            </DialogContentText>
+          </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
+          <Button onClick={() => { setConfirmDelete(false); setDeleteError(null); }}>Cancel</Button>
           <Button onClick={handleConfirmDelete} color="error" autoFocus>Delete</Button>
         </DialogActions>
       </Dialog>

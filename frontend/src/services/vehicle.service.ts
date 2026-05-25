@@ -25,9 +25,10 @@ export interface Vehicle {
   engine_number?: string | null;
   transmission?: string | null;
   color?: string | null;
-  location?: string | null; // Used for body_type
+  location?: string | null; // Storage location (e.g. "Bay 3, Row A")
   fuel_type?: string | null;
   notes?: string | null;
+  status?: 'INTAKE' | 'DISMANTLING' | 'COMPLETE' | 'SOLD'; // Vehicle lifecycle status
   is_active: boolean;
   date_received: string;
   date_stripped?: string | null;
