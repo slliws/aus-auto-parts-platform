@@ -98,7 +98,7 @@ export const generateRefreshToken = (
     issuer: config.jwt.issuer,
   };
 
-  const token = jwt.sign(payload, config.jwt.secret, options);
+  const token = jwt.sign(payload, config.jwt.refreshSecret, options);
 
   // Calculate expiration date
   const expiresAt = new Date();
@@ -163,7 +163,7 @@ export const verifyAccessToken = (token: string): AccessTokenPayload => {
  */
 export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
   try {
-    const decoded = jwt.verify(token, config.jwt.secret, {
+    const decoded = jwt.verify(token, config.jwt.refreshSecret, {
       issuer: config.jwt.issuer,
     }) as RefreshTokenPayload;
 

@@ -1,17 +1,26 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
 import { setTenantContext, validateTenantId } from '../middleware/tenantContext';
-import { dynamicRateLimiter } from '../middleware/rateLimiter';
+import { dynamicRateLimiter, authRateLimiter } from '../middleware/rateLimiter';
+import rateLimit from 'express-rate-limit';
+
+// Rate limiter for public tenant registration (5 per hour per IP)
+const tenantRegRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => req.ip || 'unknown',
+  message: { success: false, message: 'Too many tenant registration attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 import { validateBody, validateParams } from '../middleware/validator';
 import { tenantSchema, commonSchemas } from '../utils/validators';
 import { UserRole } from '@prisma/client';
-// TODO: Import tenants controller when implemented
-// import * as tenantsController from '../controllers/tenants.controller';
+import * as tenantsController from '../controllers/tenants.controller';
 
 /**
  * Tenant management routes
  * Handles tenant registration, configuration, and management
- * TODO: Implement actual tenant management endpoints
  */
 
 const router = Router();
@@ -23,14 +32,9 @@ const router = Router();
  */
 router.post(
   '/',
+  tenantRegRateLimiter,
   validateBody(tenantSchema),
-  // TODO: tenantsController.createTenant
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Create tenant endpoint not yet implemented',
-    });
-  }
+  tenantsController.createTenant
 );
 
 /**
@@ -49,13 +53,7 @@ router.get(
   '/:tenantId',
   authorize(UserRole.ADMIN, UserRole.MANAGER),
   validateTenantId,
-  // TODO: tenantsController.getTenantById
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Get tenant endpoint not yet implemented',
-    });
-  }
+  tenantsController.getTenantById
 );
 
 /**
@@ -67,14 +65,7 @@ router.put(
   '/:tenantId',
   authorize(UserRole.ADMIN),
   validateTenantId,
-  // TODO: validateBody(updateTenantSchema),
-  // TODO: tenantsController.updateTenant
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Update tenant endpoint not yet implemented',
-    });
-  }
+  tenantsController.updateTenant
 );
 
 /**
@@ -86,13 +77,7 @@ router.get(
   '/:tenantId/subscription',
   authorize(UserRole.ADMIN, UserRole.MANAGER),
   validateTenantId,
-  // TODO: tenantsController.getSubscription
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Get subscription endpoint not yet implemented',
-    });
-  }
+  tenantsController.getSubscription
 );
 
 /**
@@ -104,14 +89,7 @@ router.patch(
   '/:tenantId/subscription',
   authorize(UserRole.ADMIN),
   validateTenantId,
-  // TODO: validateBody(updateSubscriptionSchema),
-  // TODO: tenantsController.updateSubscription
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Update subscription endpoint not yet implemented',
-    });
-  }
+  tenantsController.updateSubscription
 );
 
 /**
@@ -123,13 +101,7 @@ router.get(
   '/:tenantId/settings',
   authorize(UserRole.ADMIN, UserRole.MANAGER),
   validateTenantId,
-  // TODO: tenantsController.getSettings
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Get tenant settings endpoint not yet implemented',
-    });
-  }
+  tenantsController.getSettings
 );
 
 /**
@@ -141,14 +113,7 @@ router.put(
   '/:tenantId/settings',
   authorize(UserRole.ADMIN),
   validateTenantId,
-  // TODO: validateBody(updateSettingsSchema),
-  // TODO: tenantsController.updateSettings
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Update tenant settings endpoint not yet implemented',
-    });
-  }
+  tenantsController.updateSettings
 );
 
 /**
@@ -160,13 +125,7 @@ router.get(
   '/:tenantId/usage',
   authorize(UserRole.ADMIN, UserRole.MANAGER),
   validateTenantId,
-  // TODO: tenantsController.getUsageStats
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Get usage statistics endpoint not yet implemented',
-    });
-  }
+  tenantsController.getUsageStats
 );
 
 /**
@@ -178,13 +137,7 @@ router.delete(
   '/:tenantId',
   authorize(UserRole.ADMIN),
   validateTenantId,
-  // TODO: tenantsController.deactivateTenant
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Deactivate tenant endpoint not yet implemented',
-    });
-  }
+  tenantsController.deactivateTenant
 );
 
 export default router;

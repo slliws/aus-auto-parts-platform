@@ -8,7 +8,7 @@ import { clearAuth, setTokens } from '../store/slices/authSlice';
  */
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
 // API Response Types

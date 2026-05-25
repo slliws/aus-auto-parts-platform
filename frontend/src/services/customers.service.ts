@@ -223,7 +223,7 @@ export const fetchCustomers = async (
     
     const response = await api.get('/customers', { params });
     return {
-      data: response.data.data,
+      data: response.data.data?.customers ?? response.data.data ?? [],
       meta: response.data.meta,
     };
   } catch (error) {

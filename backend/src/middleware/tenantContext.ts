@@ -2,41 +2,114 @@ import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import { TenantError } from '../utils/errors';
 import { SubscriptionTier } from '@prisma/client';
+import { getCache, setCache, deleteCache } from '../config/redis';
 
 /**
  * Tenant context middleware for multi-tenant architecture
  * Sets tenant context based on authenticated user
- * TODO: Implement actual tenant lookup from database
+ * Includes Redis caching to avoid DB hit on every request
  */
 
+// Cache TTL: 5 minutes — balances freshness vs DB load
+const TENANT_CACHE_TTL_SECONDS = 300;
+const TENANT_CACHE_PREFIX = 'tenant:';
+
 /**
- * Loads tenant information from database
+ * Build a consistent Redis cache key for a tenant
  */
-const loadTenant = async (tenantId: string) => {
+const tenantCacheKey = (tenantId: string): string =>
+  `${TENANT_CACHE_PREFIX}${tenantId}`;
+
+/**
+ * Load tenant from Redis cache (returns null on miss or parse error)
+ */
+const loadTenantFromCache = async (tenantId: string) => {
+  try {
+    const cached = await getCache(tenantCacheKey(tenantId));
+    if (!cached) return null;
+    const tenant = JSON.parse(cached);
+    // Rehydrate Date fields that JSON.parse turns into strings
+    if (tenant.created_at) tenant.created_at = new Date(tenant.created_at);
+    if (tenant.updated_at) tenant.updated_at = new Date(tenant.updated_at);
+    logger.debug('Tenant loaded from cache', { tenantId });
+    return tenant;
+  } catch (error) {
+    logger.warn('Failed to parse tenant from cache, will reload from DB', { tenantId, error });
+    return null;
+  }
+};
+
+/**
+ * Write a tenant to Redis cache (non-fatal on failure)
+ */
+const cacheTenant = async (tenant: object & { id: string }): Promise<void> => {
+  try {
+    await setCache(
+      tenantCacheKey(tenant.id),
+      JSON.stringify(tenant),
+      TENANT_CACHE_TTL_SECONDS
+    );
+    logger.debug('Tenant written to cache', { tenantId: tenant.id, ttl: TENANT_CACHE_TTL_SECONDS });
+  } catch (error) {
+    // Cache write failure is non-fatal — DB remains source of truth
+    logger.warn('Failed to cache tenant (non-fatal)', { tenantId: tenant.id, error });
+  }
+};
+
+/**
+ * Loads tenant information from database and populates cache
+ */
+const loadTenantFromDb = async (tenantId: string) => {
   try {
     // Import here to avoid circular dependency
     const prisma = await import('../models/prisma').then(m => m.default);
-    
-    // Get tenant from database
+
     const tenant = await prisma.tenant.findUnique({
-      where: { id: tenantId }
+      where: { id: tenantId },
     });
-    
+
     if (!tenant) {
       logger.error('Tenant not found in database', { tenantId });
       return null;
     }
-    
+
+    // Populate cache for future requests
+    await cacheTenant(tenant);
+
     return tenant;
   } catch (error) {
-    logger.error('Error loading tenant', { tenantId, error });
+    logger.error('Error loading tenant from DB', { tenantId, error });
     throw error;
+  }
+};
+
+/**
+ * Load tenant: cache-first, DB fallback
+ */
+const loadTenant = async (tenantId: string) => {
+  const cached = await loadTenantFromCache(tenantId);
+  if (cached) return cached;
+  return loadTenantFromDb(tenantId);
+};
+
+/**
+ * Invalidate a tenant's cache entry.
+ * Call this whenever a tenant record is mutated (update, deactivate, tier change).
+ * Exported so tenant.service.ts can call it directly.
+ */
+export const invalidateTenantCache = async (tenantId: string): Promise<void> => {
+  try {
+    await deleteCache(tenantCacheKey(tenantId));
+    logger.debug('Tenant cache invalidated', { tenantId });
+  } catch (error) {
+    logger.warn('Failed to invalidate tenant cache (non-fatal)', { tenantId, error });
   }
 };
 
 /**
  * Tenant context middleware
  * Attaches tenant information to request based on authenticated user
+ * Cache-first: Redis → DB → error
  */
 export const setTenantContext = async (
   req: Request,
@@ -44,10 +117,8 @@ export const setTenantContext = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Require authentication first
+    // If no user, continue without tenant context (unauthenticated routes)
     if (!req.user) {
-      // If no user, continue without tenant context
-      // This allows unauthenticated routes to work
       return next();
     }
 
@@ -57,8 +128,7 @@ export const setTenantContext = async (
       throw new TenantError('User is not associated with a tenant', 400);
     }
 
-    // Load tenant information
-    // TODO: Implement caching to avoid database query on every request
+    // Load tenant (cache-first, DB fallback)
     const tenant = await loadTenant(tenantId);
 
     if (!tenant) {
@@ -166,7 +236,6 @@ export const requireSubscriptionTier = (...allowedTiers: SubscriptionTier[]) => 
 
 /**
  * Extracts tenant ID from subdomain (for future multi-domain setup)
- * TODO: Implement subdomain-based tenant identification
  */
 export const extractTenantFromSubdomain = (
   req: Request,
@@ -176,10 +245,7 @@ export const extractTenantFromSubdomain = (
   try {
     const host = req.get('host') || '';
     const subdomain = host.split('.')[0];
-
-    // TODO: Implement subdomain to tenant ID mapping
     logger.debug('Subdomain detected', { subdomain });
-
     next();
   } catch (error) {
     next(error);
@@ -191,4 +257,5 @@ export default {
   validateTenantId,
   requireSubscriptionTier,
   extractTenantFromSubdomain,
+  invalidateTenantCache,
 };

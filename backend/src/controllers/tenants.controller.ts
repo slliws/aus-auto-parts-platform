@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { ApiResponse } from '../types';
+import * as tenantService from '../services/tenant.service';
+import { SubscriptionTier } from '@prisma/client';
+import { logger } from '../utils/logger';
+import { validate, tenantSchema, updateTenantSchema } from '../utils/validators';
 
 /**
  * Tenants controller
- * Handles tenant management operations
- * TODO: Implement actual tenant management logic with database integration
+ * Handles tenant management operations — wired to tenant.service.ts
  */
 
 /**
@@ -14,20 +17,27 @@ import { ApiResponse } from '../types';
  */
 export const createTenant = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement create tenant
-    // 1. Validate tenant data
-    // 2. Check if ABN already exists
-    // 3. Create tenant in database
-    // 4. Create default admin user
-    // 5. Send welcome email
-    // 6. Return created tenant
+    const validatedBody = validate<{ name: string; abn?: string; email: string; phone?: string; address?: string; subscription_tier?: string }>(tenantSchema, req.body);
+    const { name, abn, email, phone, address, subscription_tier } = validatedBody;
+
+    const tenant = await tenantService.createTenant({
+      name,
+      abn,
+      email,
+      phone,
+      address,
+      subscription_tier: subscription_tier as SubscriptionTier | undefined,
+    });
+
+    logger.info('Tenant created via API', { tenantId: tenant.id });
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Create tenant not yet implemented',
+      success: true,
+      message: 'Tenant created successfully',
+      data: tenant,
     };
 
-    res.status(501).json(response);
+    res.status(201).json(response);
   }
 );
 
@@ -37,18 +47,17 @@ export const createTenant = asyncHandler(
  */
 export const getTenantById = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement get tenant by ID
-    // 1. Extract tenant ID
-    // 2. Find tenant in database
-    // 3. Verify user has access
-    // 4. Return tenant data
+    const { tenantId } = req.params;
+
+    const tenant = await tenantService.getTenantById(tenantId);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Get tenant by ID not yet implemented',
+      success: true,
+      message: 'Tenant retrieved successfully',
+      data: tenant,
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -58,19 +67,27 @@ export const getTenantById = asyncHandler(
  */
 export const updateTenant = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement update tenant
-    // 1. Extract tenant ID and update data
-    // 2. Validate update data
-    // 3. Update tenant in database
-    // 4. Log changes for audit
-    // 5. Return updated tenant
+    const { tenantId } = req.params;
+    const validatedBody = validate<{ name?: string; abn?: string; email?: string; phone?: string; address?: string }>(updateTenantSchema, req.body);
+    const { name, abn, email, phone, address } = validatedBody;
+
+    const updatedTenant = await tenantService.updateTenant(tenantId, {
+      name,
+      abn,
+      email,
+      phone,
+      address,
+    });
+
+    logger.info('Tenant updated via API', { tenantId });
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Update tenant not yet implemented',
+      success: true,
+      message: 'Tenant updated successfully',
+      data: updatedTenant,
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -80,17 +97,17 @@ export const updateTenant = asyncHandler(
  */
 export const getSubscription = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement get subscription
-    // 1. Extract tenant ID
-    // 2. Get subscription details from database
-    // 3. Return subscription info with usage stats
+    const { tenantId } = req.params;
+
+    const subscription = await tenantService.getSubscription(tenantId);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Get subscription not yet implemented',
+      success: true,
+      message: 'Subscription details retrieved successfully',
+      data: subscription,
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -100,20 +117,23 @@ export const getSubscription = asyncHandler(
  */
 export const updateSubscription = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement update subscription
-    // 1. Extract tenant ID and new subscription tier
-    // 2. Validate subscription tier
-    // 3. Process payment if required
-    // 4. Update subscription in database
-    // 5. Send confirmation email
-    // 6. Return updated subscription
+    const { tenantId } = req.params;
+    const { subscription_tier, trial_ends_at } = req.body;
+
+    const updatedSubscription = await tenantService.updateSubscription(tenantId, {
+      subscription_tier,
+      trial_ends_at: trial_ends_at ? new Date(trial_ends_at) : undefined,
+    });
+
+    logger.info('Tenant subscription updated via API', { tenantId, subscription_tier });
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Update subscription not yet implemented',
+      success: true,
+      message: 'Subscription updated successfully',
+      data: updatedSubscription,
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -123,17 +143,17 @@ export const updateSubscription = asyncHandler(
  */
 export const getSettings = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement get settings
-    // 1. Extract tenant ID
-    // 2. Get settings from database or cache
-    // 3. Return settings
+    const { tenantId } = req.params;
+
+    const settings = await tenantService.getSettings(tenantId);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Get tenant settings not yet implemented',
+      success: true,
+      message: 'Tenant settings retrieved successfully',
+      data: settings,
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -143,19 +163,20 @@ export const getSettings = asyncHandler(
  */
 export const updateSettings = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement update settings
-    // 1. Extract tenant ID and settings data
-    // 2. Validate settings
-    // 3. Update settings in database
-    // 4. Clear settings cache
-    // 5. Return updated settings
+    const { tenantId } = req.params;
+    const settings = req.body;
+
+    const updatedSettings = await tenantService.updateSettings(tenantId, settings);
+
+    logger.info('Tenant settings updated via API', { tenantId });
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Update tenant settings not yet implemented',
+      success: true,
+      message: 'Tenant settings updated successfully',
+      data: updatedSettings,
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -165,40 +186,38 @@ export const updateSettings = asyncHandler(
  */
 export const getUsageStats = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement get usage stats
-    // 1. Extract tenant ID and date range
-    // 2. Query usage data from database/analytics
-    // 3. Calculate statistics
-    // 4. Return usage stats
+    const { tenantId } = req.params;
+
+    const usageStats = await tenantService.getUsageStats(tenantId);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Get usage statistics not yet implemented',
+      success: true,
+      message: 'Usage statistics retrieved successfully',
+      data: usageStats,
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
 /**
- * Deactivate tenant
+ * Deactivate tenant (soft delete)
  * @route DELETE /api/v1/tenants/:tenantId
  */
 export const deactivateTenant = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement deactivate tenant
-    // 1. Extract tenant ID
-    // 2. Update tenant status to inactive
-    // 3. Deactivate all users in tenant
-    // 4. Send deactivation notification
-    // 5. Return success response
+    const { tenantId } = req.params;
+
+    await tenantService.deleteTenant(tenantId);
+
+    logger.info('Tenant deactivated via API', { tenantId });
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Deactivate tenant not yet implemented',
+      success: true,
+      message: 'Tenant deactivated successfully',
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 

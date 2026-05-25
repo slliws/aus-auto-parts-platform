@@ -24,6 +24,7 @@ import {
   verifyPasswordResetToken,
 } from '../utils/jwt';
 import { User, Tenant, Prisma } from '@prisma/client';
+import emailService from './email.service';
 
 /**
  * Interface for registration data
@@ -183,11 +184,9 @@ export const register = async (
     tenantId: data.tenantId,
   });
 
-  // TODO: Send verification email (stub for now)
-  logger.info('Email verification token generated (email sending not implemented)', {
-    userId: user.id,
-    token: verificationToken,
-  });
+  // Send verification email (async, non-blocking — failure logged but doesn't break registration)
+  emailService.sendVerificationEmail(user.email, verificationToken, user.first_name || undefined)
+    .catch(err => logger.warn('[auth] Verification email failed to send', { userId: user.id, error: err.message }));
 
   return {
     user: sanitizeUser(user),
@@ -503,11 +502,9 @@ export const requestPasswordReset = async (
     email: user.email,
   });
 
-  // TODO: Send reset email (stub for now)
-  logger.info('Password reset token generated (email sending not implemented)', {
-    userId: user.id,
-    token: resetToken,
-  });
+  // Send password reset email (async, non-blocking)
+  emailService.sendPasswordResetEmail(user.email, resetToken, user.first_name || undefined)
+    .catch(err => logger.warn('[auth] Password reset email failed to send', { userId: user.id, error: err.message }));
 
   return resetToken;
 };

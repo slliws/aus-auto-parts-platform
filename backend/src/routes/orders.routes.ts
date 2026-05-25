@@ -1,9 +1,14 @@
 import { Router } from 'express';
+import { authenticate } from '../middleware/auth';
+import { setTenantContext } from '../middleware/tenantContext';
 import ordersController from '../controllers/orders.controller';
 import { validateBody, validateQuery, validateParams } from '../middleware/validator';
 import Joi from 'joi';
 
 const router = Router();
+
+router.use(authenticate);
+router.use(setTenantContext);
 
 /**
  * Orders routes for the Australian Auto Parts Platform

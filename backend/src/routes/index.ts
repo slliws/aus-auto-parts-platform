@@ -10,6 +10,7 @@ import vehicleRoutes from './vehicle.routes';
 import searchRoutes from './search.routes';
 import analyticsRoutes from './analytics.routes';
 import paymentsRoutes from './payments.routes';
+import apiCallTracker from '../middleware/apiCallTracker';
 
 /**
  * Main router that combines all API routes
@@ -17,6 +18,13 @@ import paymentsRoutes from './payments.routes';
  */
 
 const router = Router();
+
+/**
+ * API call tracking — fires post-response for all authenticated routes.
+ * Must be registered before route modules so the finish-event listener
+ * is attached to every response that flows through this router.
+ */
+router.use(apiCallTracker);
 
 /**
  * Health check endpoint
@@ -56,13 +64,5 @@ router.use('/search', searchRoutes);
 router.use('/quotes', quotesRoutes);
 router.use('/orders', ordersRoutes);
 router.use('/payments', paymentsRoutes);
-
-/**
- * TODO: Add additional route modules as they are implemented:
- * - Orders routes
- * - Quotes routes
- * - Reports routes
- * - Admin routes
- */
 
 export default router;

@@ -17,7 +17,9 @@ export class PDFService {
         const doc = new PDFDocument({
           size: 'A4',
           margin: 50,
-          creationDate: new Date(),
+          info: {
+            CreationDate: new Date(),
+          },
         });
 
         const buffers: Buffer[] = [];

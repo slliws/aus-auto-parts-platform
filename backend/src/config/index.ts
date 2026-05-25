@@ -40,6 +40,7 @@ interface Config {
   // JWT
   jwt: {
     secret: string;
+    refreshSecret: string;
     accessExpiry: string;
     refreshExpiry: string;
     issuer: string;
@@ -88,7 +89,7 @@ interface Config {
  * @throws {Error} If required variables are missing
  */
 const validateConfig = (): void => {
-  const required = ['NODE_ENV', 'PORT', 'DB_HOST', 'DB_NAME', 'JWT_SECRET'];
+  const required = ['NODE_ENV', 'PORT', 'DB_HOST', 'DB_NAME', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
   const missing = required.filter((key) => !process.env[key]);
 
   if (missing.length > 0) {
@@ -136,6 +137,7 @@ const config: Config = {
 
   jwt: {
     secret: process.env.JWT_SECRET || '',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || '',
     accessExpiry: process.env.JWT_ACCESS_EXPIRY || '1h',
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '30d',
     issuer: process.env.JWT_ISSUER || 'aus-auto-parts-platform',

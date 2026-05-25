@@ -216,15 +216,49 @@ export const authValidation = {
 
 /**
  * Tenant creation validation schema
- * TODO: Implement full tenant validation
+ * Validates all fields for creating a new tenant/business account
  */
 export const tenantSchema = Joi.object({
-  name: Joi.string().trim().min(1).max(200).required(),
+  name: Joi.string().trim().min(2).max(255).required().messages({
+    'string.min': 'Business name must be at least 2 characters',
+    'string.max': 'Business name cannot exceed 255 characters',
+    'any.required': 'Business name is required',
+  }),
   abn: commonSchemas.abn,
-  acn: commonSchemas.acn.optional(),
-  email: commonSchemas.email,
+  email: commonSchemas.email.messages({
+    'string.email': 'Please provide a valid business email address',
+    'any.required': 'Business email is required',
+  }),
   phone: commonSchemas.phone.optional(),
-  // Additional fields to be added
+  address: Joi.string().trim().max(500).optional().allow(null, '').messages({
+    'string.max': 'Address cannot exceed 500 characters',
+  }),
+  subscription_tier: Joi.string()
+    .valid('BASIC', 'PRO', 'ENTERPRISE')
+    .default('BASIC')
+    .optional()
+    .messages({
+      'any.only': 'Subscription tier must be BASIC, PRO, or ENTERPRISE',
+    }),
+});
+
+/**
+ * Tenant update validation schema
+ * All fields optional — only provided fields are updated (PATCH semantics)
+ */
+export const updateTenantSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(255).optional().messages({
+    'string.min': 'Business name must be at least 2 characters',
+    'string.max': 'Business name cannot exceed 255 characters',
+  }),
+  abn: commonSchemas.abn.optional(),
+  email: commonSchemas.email.optional().messages({
+    'string.email': 'Please provide a valid business email address',
+  }),
+  phone: commonSchemas.phone.optional(),
+  address: Joi.string().trim().max(500).optional().allow(null, '').messages({
+    'string.max': 'Address cannot exceed 500 characters',
+  }),
 });
 
 /**
@@ -593,6 +627,7 @@ export default {
   userRegistrationSchema,
   loginSchema,
   tenantSchema,
+  updateTenantSchema,
   paginationSchema,
   partsValidation,
   customersValidation,

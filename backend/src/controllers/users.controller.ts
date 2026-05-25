@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { ApiResponse, PaginatedResponse } from '../types';
+import * as userService from '../services/user.service';
+import { logger } from '../utils/logger';
+import { UserRole } from '@prisma/client';
 
 /**
  * Users controller
  * Handles user management operations within a tenant
- * TODO: Implement actual user management logic with database integration
  */
 
 /**
@@ -14,19 +16,43 @@ import { ApiResponse, PaginatedResponse } from '../types';
  */
 export const getUsers = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement get users
-    // 1. Extract pagination parameters
-    // 2. Build query with tenant filter
-    // 3. Apply sorting and filtering
-    // 4. Execute query
-    // 5. Return paginated results
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Extract pagination parameters
+    const page = parseInt(req.query.page as string) || 1;
+    const per_page = parseInt(req.query.per_page as string) || 20;
+
+    // Extract filter parameters
+    const role = req.query.role as UserRole | undefined;
+    const is_active = req.query.is_active ? req.query.is_active === 'true' : undefined;
+    const sort_by = (req.query.sort_by as string) || 'created_at';
+    const sort_order = (req.query.sort_order as 'asc' | 'desc') || 'desc';
+
+    const result = await userService.listUsers(tenantId, {
+      page,
+      per_page,
+      role,
+      is_active,
+      sort_by,
+      sort_order,
+    });
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Get users not yet implemented',
+      success: true,
+      data: result.data,
+      meta: result.pagination,
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -36,18 +62,26 @@ export const getUsers = asyncHandler(
  */
 export const getUserById = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement get user by ID
-    // 1. Extract user ID from params
-    // 2. Verify tenant access
-    // 3. Find user in database
-    // 4. Return user data
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const user = await userService.getUserById(tenantId, id);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Get user by ID not yet implemented',
+      success: true,
+      data: { user },
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -57,20 +91,45 @@ export const getUserById = asyncHandler(
  */
 export const createUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement create user
-    // 1. Validate input data
-    // 2. Check if user already exists
-    // 3. Hash password
-    // 4. Create user with tenant association
-    // 5. Send welcome email
-    // 6. Return created user
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const { email, password, first_name, last_name, role, phone } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !role) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Missing required fields: email, password, role',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const user = await userService.createUser(tenantId, {
+      email,
+      password,
+      first_name,
+      last_name,
+      role,
+      phone,
+    });
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Create user not yet implemented',
+      success: true,
+      message: 'User created successfully',
+      data: { user },
     };
 
-    res.status(501).json(response);
+    res.status(201).json(response);
   }
 );
 
@@ -80,19 +139,36 @@ export const createUser = asyncHandler(
  */
 export const updateUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement update user
-    // 1. Extract user ID and update data
-    // 2. Verify user exists and belongs to tenant
-    // 3. Check permissions (user can update self or admin can update any)
-    // 4. Update user in database
-    // 5. Return updated user
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const { email, first_name, last_name, phone, avatar_url } = req.body;
+
+    const updateData: userService.UpdateUserInput = {};
+    if (email !== undefined) updateData.email = email;
+    if (first_name !== undefined) updateData.first_name = first_name;
+    if (last_name !== undefined) updateData.last_name = last_name;
+    if (phone !== undefined) updateData.phone = phone;
+    if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
+
+    const user = await userService.updateUser(tenantId, id, updateData);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Update user not yet implemented',
+      success: true,
+      message: 'User updated successfully',
+      data: { user },
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -102,19 +178,26 @@ export const updateUser = asyncHandler(
  */
 export const deleteUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement delete user
-    // 1. Extract user ID
-    // 2. Verify user exists and belongs to tenant
-    // 3. Soft delete user (set deletedAt timestamp)
-    // 4. Invalidate user sessions
-    // 5. Return success response
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    await userService.deleteUser(tenantId, id);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Delete user not yet implemented',
+      success: true,
+      message: 'User deleted successfully',
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -124,18 +207,27 @@ export const deleteUser = asyncHandler(
  */
 export const activateUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement activate user
-    // 1. Extract user ID
-    // 2. Update user status to active
-    // 3. Send activation notification email
-    // 4. Return success response
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const user = await userService.activateUser(tenantId, id);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Activate user not yet implemented',
+      success: true,
+      message: 'User activated successfully',
+      data: { user },
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -145,19 +237,27 @@ export const activateUser = asyncHandler(
  */
 export const deactivateUser = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement deactivate user
-    // 1. Extract user ID
-    // 2. Update user status to inactive
-    // 3. Invalidate user sessions
-    // 4. Send deactivation notification email
-    // 5. Return success response
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const user = await userService.deactivateUser(tenantId, id);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Deactivate user not yet implemented',
+      success: true,
+      message: 'User deactivated successfully',
+      data: { user },
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -167,21 +267,38 @@ export const deactivateUser = asyncHandler(
  */
 export const changePassword = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement change password
-    // 1. Verify current password
-    // 2. Validate new password
-    // 3. Hash new password
-    // 4. Update password in database
-    // 5. Invalidate existing sessions
-    // 6. Send password change notification
-    // 7. Return success response
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const { oldPassword, newPassword } = req.body;
+
+    // Validate required fields
+    if (!oldPassword || !newPassword) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Missing required fields: oldPassword, newPassword',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    await userService.changePassword(tenantId, id, oldPassword, newPassword);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Change password not yet implemented',
+      success: true,
+      message: 'Password changed successfully',
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 
@@ -191,19 +308,39 @@ export const changePassword = asyncHandler(
  */
 export const updateUserRole = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // TODO: Implement update user role
-    // 1. Extract user ID and new role
-    // 2. Verify role is valid
-    // 3. Update user role in database
-    // 4. Log role change for audit
-    // 5. Return updated user
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Tenant context not found',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const { role } = req.body;
+
+    // Validate required fields
+    if (!role) {
+      const response: ApiResponse = {
+        success: false,
+        message: 'Missing required field: role',
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const user = await userService.updateRole(tenantId, id, role as UserRole);
 
     const response: ApiResponse = {
-      success: false,
-      message: 'Update user role not yet implemented',
+      success: true,
+      message: 'User role updated successfully',
+      data: { user },
     };
 
-    res.status(501).json(response);
+    res.status(200).json(response);
   }
 );
 

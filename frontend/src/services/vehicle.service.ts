@@ -206,8 +206,8 @@ export const fetchVehicles = async (
     
     const response = await api.get('/vehicles', { params });
     return {
-      data: response.data.data,
-      meta: response.data.meta,
+      data: response.data.data?.vehicles ?? response.data.data ?? [],
+      meta: response.data.meta ?? response.data.data?.meta,
     };
   } catch (error) {
     handleApiError(error);

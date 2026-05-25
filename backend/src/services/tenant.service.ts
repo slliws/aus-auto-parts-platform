@@ -7,6 +7,8 @@ import prisma from '../models/prisma';
 import { logger } from '../utils/logger';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors';
 import { SubscriptionTier } from '@prisma/client';
+import { invalidateTenantCache } from '../middleware/tenantContext';
+import { getApiCallCount } from '../middleware/apiCallTracker';
 
 /**
  * Type definitions for tenant operations
@@ -218,6 +220,7 @@ export const updateTenant = async (
     });
 
     logger.info('Tenant updated successfully', { tenantId });
+    await invalidateTenantCache(tenantId);
     return updatedTenant;
   } catch (error) {
     logger.error('Error updating tenant:', error);
@@ -264,6 +267,7 @@ export const deleteTenant = async (tenantId: string): Promise<void> => {
     });
 
     logger.info('Tenant deleted successfully', { tenantId });
+    await invalidateTenantCache(tenantId);
   } catch (error) {
     logger.error('Error deleting tenant:', error);
     throw error;
@@ -351,6 +355,7 @@ export const updateSubscription = async (
     });
 
     logger.info('Subscription updated successfully', { tenantId });
+    await invalidateTenantCache(tenantId);
     return updatedTenant;
   } catch (error) {
     logger.error('Error updating subscription:', error);
@@ -436,6 +441,7 @@ export const updateSettings = async (
     });
 
     logger.info('Tenant settings updated successfully', { tenantId });
+    await invalidateTenantCache(tenantId);
     return settings;
   } catch (error) {
     logger.error('Error updating tenant settings:', error);
@@ -459,12 +465,13 @@ export const getUsageStats = async (tenantId: string): Promise<any> => {
     }
 
     // Get counts
-    const [userCount, customerCount, vehicleCount, partCount, orderCount] = await Promise.all([
+    const [userCount, customerCount, vehicleCount, partCount, orderCount, hourlyApiCalls] = await Promise.all([
       prisma.user.count({ where: { tenant_id: tenantId, is_active: true } }),
       prisma.customer.count({ where: { tenant_id: tenantId, is_active: true } }),
       prisma.vehicle.count({ where: { tenant_id: tenantId, is_active: true } }),
       prisma.part.count({ where: { tenant_id: tenantId, is_available: true } }),
       prisma.order.count({ where: { tenant_id: tenantId } }),
+      getApiCallCount(tenantId),
     ]);
 
     // Calculate storage (estimate based on parts with images)
@@ -498,10 +505,9 @@ export const getUsageStats = async (tenantId: string): Promise<any> => {
         orders: orderCount,
       },
       api_calls: {
-        // TODO: Implement API call tracking
-        hourly_count: 0,
+        hourly_count: hourlyApiCalls,
         limit: quotas.max_api_calls_per_hour,
-        percentage: '0.00',
+        percentage: ((hourlyApiCalls / quotas.max_api_calls_per_hour) * 100).toFixed(2),
       },
     };
   } catch (error) {

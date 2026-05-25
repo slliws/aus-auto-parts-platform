@@ -103,6 +103,8 @@ export interface QuoteWithDetails extends Omit<Quote, 'subtotal_amount' | 'gst_a
     last_name: string;
     email: string;
     phone: string;
+    company_name?: string | null;
+    address?: string | null;
   };
   user?: {
     first_name: string;
@@ -311,6 +313,8 @@ export const getQuotes = async (
             last_name: true,
             email: true,
             phone: true,
+            company_name: true,
+            address: true,
           },
         },
         user: {
@@ -383,6 +387,7 @@ export const getQuoteById = async (
           email: true,
           phone: true,
           company_name: true,
+          address: true,
         },
       },
       user: {

@@ -108,12 +108,15 @@ const prismaWithExtensions = prisma.$extends({
         
         // Apply tenant filter if context is available
         if (ctx.tenantId && operation !== 'count' && operation !== 'aggregate') {
+          // Cast args to mutable record for tenant injection
+          // (Prisma's $allOperations args is a union type; runtime access is safe)
+          const mutableArgs = args as unknown as { where?: Record<string, unknown> };
           // Ensure where clause exists
-          args.where = args.where || {};
+          mutableArgs.where = mutableArgs.where || {};
           
           // Add tenant_id filter if not already present
-          if (!args.where.tenant_id) {
-            args.where.tenant_id = ctx.tenantId;
+          if (!mutableArgs.where['tenant_id']) {
+            mutableArgs.where['tenant_id'] = ctx.tenantId;
           }
         }
         
