@@ -35,6 +35,9 @@ const QuotesPage = lazy(() => import('../pages/QuotesPage'));
 const QuoteDetailPage = lazy(() => import('../pages/QuoteDetailPage'));
 const ReportsPage = lazy(() => import('../pages/ReportsPage'));
 
+// Team / User management
+const UsersPage = lazy(() => import('../pages/UsersPage'));
+
 // Loading component for Suspense fallback
 const LoadingFallback = () => (
   <div style={{
@@ -86,6 +89,9 @@ const AppRoutes = () => {
           {/* Quotes */}
           <Route path="/quotes" element={<QuotesPage />} />
           <Route path="/quotes/:id" element={<QuoteDetailPage />} />
+
+          {/* Team / User Management */}
+          <Route path="/users" element={<UsersPage />} />
 
           {/* Legacy marketplace routes */}
           <Route path="/marketplace" element={<MarketplacePage />} />

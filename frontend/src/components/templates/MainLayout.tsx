@@ -31,6 +31,7 @@ import {
   AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
+  ManageAccounts as ManageAccountsIcon,
 } from '@mui/icons-material';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -44,6 +45,8 @@ interface NavigationItem {
   path: string;
   icon: JSX.Element;
   badge?: number;
+  /** Only show for these roles (undefined = show to all) */
+  roles?: string[];
 }
 
 const navigationItems: NavigationItem[] = [
@@ -54,6 +57,13 @@ const navigationItems: NavigationItem[] = [
   { id: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: <DirectionsCarIcon /> },
   { id: 'quotes', label: 'Quotes', path: '/quotes', icon: <RequestQuoteIcon /> },
   { id: 'reports', label: 'Reports', path: '/reports', icon: <AssessmentIcon /> },
+  {
+    id: 'users',
+    label: 'Team',
+    path: '/users',
+    icon: <ManageAccountsIcon />,
+    roles: ['OWNER', 'ADMIN'],
+  },
 ];
 
 /**
@@ -96,6 +106,12 @@ const MainLayout = () => {
     handleUserMenuClose();
   };
 
+  // Filter nav items by user role
+  const visibleNavItems = navigationItems.filter(item => {
+    if (!item.roles) return true;
+    return item.roles.includes((user as any)?.role ?? '');
+  });
+
   const drawer = (
     <Box>
       <Toolbar>
@@ -105,7 +121,7 @@ const MainLayout = () => {
       </Toolbar>
       <Divider />
       <List>
-        {navigationItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <ListItem key={item.id} disablePadding>

@@ -1,17 +1,18 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../index';
+import apiService from '../../services/api.service';
 
 /**
  * Users State Interface
  * Manages tenant users with RBAC roles
  */
-interface User {
+export interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: 'OWNER' | 'ADMIN' | 'SALES' | 'INVENTORY' | 'ACCOUNTANT' | 'CUSTOMER';
+  role: 'OWNER' | 'ADMIN' | 'MANAGER' | 'SALES' | 'INVENTORY' | 'ACCOUNTANT' | 'CUSTOMER';
   isActive: boolean;
   tenantId: string;
   createdAt: string;
@@ -38,6 +39,7 @@ interface FetchUsersParams {
   limit?: number;
   role?: string;
   search?: string;
+  isActive?: boolean;
 }
 
 interface FetchUsersResponse {
@@ -49,7 +51,7 @@ interface CreateUserPayload {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'OWNER' | 'ADMIN' | 'SALES' | 'INVENTORY' | 'ACCOUNTANT' | 'CUSTOMER';
+  role: User['role'];
   password: string;
 }
 
@@ -73,18 +75,34 @@ const initialState: UsersState = {
 
 /**
  * Async Thunk: Fetch Users
- * Retrieves paginated list of tenant users with optional filters
  */
 export const fetchUsers = createAsyncThunk<FetchUsersResponse, FetchUsersParams>(
   'users/fetchUsers',
   async (params, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to GET /api/v1/users
-      // const response = await usersAPI.getUsers(params);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const queryParams: Record<string, any> = {
+        page: params.page ?? 1,
+        limit: params.limit ?? 10,
+      };
+      if (params.role) queryParams.role = params.role;
+      if (params.search) queryParams.search = params.search;
+      if (params.isActive !== undefined) queryParams.is_active = params.isActive;
+
+      const res = await apiService.get('/users', { params: queryParams });
+      const body = res.data;
+      // Normalise envelope: support { data, meta } or { items, total, page, pageSize, totalPages }
+      if (body.data && body.meta) {
+        return { data: body.data, meta: body.meta };
+      }
+      return {
+        data: body.items ?? body.data ?? [],
+        meta: {
+          currentPage: body.page ?? params.page ?? 1,
+          totalPages: body.totalPages ?? 1,
+          totalItems: body.total ?? 0,
+          itemsPerPage: body.pageSize ?? params.limit ?? 10,
+        },
+      };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch users');
     }
@@ -93,18 +111,13 @@ export const fetchUsers = createAsyncThunk<FetchUsersResponse, FetchUsersParams>
 
 /**
  * Async Thunk: Create User
- * Creates new tenant user with specified role
  */
 export const createUser = createAsyncThunk<User, CreateUserPayload>(
   'users/createUser',
   async (userData, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to POST /api/v1/users
-      // const response = await usersAPI.createUser(userData);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.post('/users', userData);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create user');
     }
@@ -113,18 +126,13 @@ export const createUser = createAsyncThunk<User, CreateUserPayload>(
 
 /**
  * Async Thunk: Update User
- * Updates existing user details (role, active status, etc.)
  */
 export const updateUser = createAsyncThunk<User, UpdateUserPayload>(
   'users/updateUser',
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to PUT /api/v1/users/:id
-      // const response = await usersAPI.updateUser(id, data);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.put(`/users/${id}`, data);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update user');
     }
@@ -132,19 +140,14 @@ export const updateUser = createAsyncThunk<User, UpdateUserPayload>(
 );
 
 /**
- * Async Thunk: Delete User
- * Soft deletes user (sets isActive to false)
+ * Async Thunk: Delete User (soft delete)
  */
 export const deleteUser = createAsyncThunk<string, string>(
   'users/deleteUser',
   async (userId, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to DELETE /api/v1/users/:id
-      // await usersAPI.deleteUser(userId);
-      // return userId;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      await apiService.delete(`/users/${userId}`);
+      return userId;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete user');
     }
@@ -153,20 +156,60 @@ export const deleteUser = createAsyncThunk<string, string>(
 
 /**
  * Async Thunk: Fetch User by ID
- * Retrieves single user details
  */
 export const fetchUserById = createAsyncThunk<User, string>(
   'users/fetchUserById',
   async (userId, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to GET /api/v1/users/:id
-      // const response = await usersAPI.getUserById(userId);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.get(`/users/${userId}`);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch user');
+    }
+  }
+);
+
+/**
+ * Async Thunk: Activate User
+ */
+export const activateUser = createAsyncThunk<User, string>(
+  'users/activateUser',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const res = await apiService.patch(`/users/${userId}/activate`, {});
+      return res.data.data ?? res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to activate user');
+    }
+  }
+);
+
+/**
+ * Async Thunk: Deactivate User
+ */
+export const deactivateUser = createAsyncThunk<User, string>(
+  'users/deactivateUser',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const res = await apiService.patch(`/users/${userId}/deactivate`, {});
+      return res.data.data ?? res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to deactivate user');
+    }
+  }
+);
+
+/**
+ * Async Thunk: Update User Role
+ */
+export const updateUserRole = createAsyncThunk<User, { id: string; role: User['role'] }>(
+  'users/updateUserRole',
+  async ({ id, role }, { rejectWithValue }) => {
+    try {
+      const res = await apiService.patch(`/users/${id}/role`, { role });
+      return res.data.data ?? res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update user role');
     }
   }
 );
@@ -211,7 +254,7 @@ const usersSlice = createSlice({
     });
     builder.addCase(createUser.fulfilled, (state, action) => {
       state.loading = 'succeeded';
-      state.users.unshift(action.payload); // Add to beginning of list
+      state.users.unshift(action.payload);
       state.pagination.totalItems += 1;
       state.error = null;
     });
@@ -227,13 +270,9 @@ const usersSlice = createSlice({
     });
     builder.addCase(updateUser.fulfilled, (state, action) => {
       state.loading = 'succeeded';
-      const index = state.users.findIndex(user => user.id === action.payload.id);
-      if (index !== -1) {
-        state.users[index] = action.payload;
-      }
-      if (state.currentUser?.id === action.payload.id) {
-        state.currentUser = action.payload;
-      }
+      const index = state.users.findIndex(u => u.id === action.payload.id);
+      if (index !== -1) state.users[index] = action.payload;
+      if (state.currentUser?.id === action.payload.id) state.currentUser = action.payload;
       state.error = null;
     });
     builder.addCase(updateUser.rejected, (state, action) => {
@@ -248,11 +287,9 @@ const usersSlice = createSlice({
     });
     builder.addCase(deleteUser.fulfilled, (state, action) => {
       state.loading = 'succeeded';
-      state.users = state.users.filter(user => user.id !== action.payload);
-      if (state.currentUser?.id === action.payload) {
-        state.currentUser = null;
-      }
-      state.pagination.totalItems -= 1;
+      state.users = state.users.filter(u => u.id !== action.payload);
+      if (state.currentUser?.id === action.payload) state.currentUser = null;
+      state.pagination.totalItems = Math.max(0, state.pagination.totalItems - 1);
       state.error = null;
     });
     builder.addCase(deleteUser.rejected, (state, action) => {
@@ -272,6 +309,36 @@ const usersSlice = createSlice({
     });
     builder.addCase(fetchUserById.rejected, (state, action) => {
       state.loading = 'failed';
+      state.error = action.payload as string;
+    });
+
+    // Activate User
+    builder.addCase(activateUser.fulfilled, (state, action) => {
+      const index = state.users.findIndex(u => u.id === action.payload.id);
+      if (index !== -1) state.users[index] = action.payload;
+      state.error = null;
+    });
+    builder.addCase(activateUser.rejected, (state, action) => {
+      state.error = action.payload as string;
+    });
+
+    // Deactivate User
+    builder.addCase(deactivateUser.fulfilled, (state, action) => {
+      const index = state.users.findIndex(u => u.id === action.payload.id);
+      if (index !== -1) state.users[index] = action.payload;
+      state.error = null;
+    });
+    builder.addCase(deactivateUser.rejected, (state, action) => {
+      state.error = action.payload as string;
+    });
+
+    // Update User Role
+    builder.addCase(updateUserRole.fulfilled, (state, action) => {
+      const index = state.users.findIndex(u => u.id === action.payload.id);
+      if (index !== -1) state.users[index] = action.payload;
+      state.error = null;
+    });
+    builder.addCase(updateUserRole.rejected, (state, action) => {
       state.error = action.payload as string;
     });
   },
