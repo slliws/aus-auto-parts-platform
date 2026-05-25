@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Button, Chip, TextField, InputAdornment,
@@ -29,6 +30,7 @@ const PAYMENT_COLORS: Record<string, any> = {
 };
 
 const OrdersPage: React.FC = () => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +139,7 @@ const OrdersPage: React.FC = () => {
                   <TableCell><Chip label={o.status} size="small" color={STATUS_COLORS[o.status] ?? 'default'} /></TableCell>
                   <TableCell><Chip label={o.payment_status} size="small" color={PAYMENT_COLORS[o.payment_status] ?? 'default'} variant="outlined" /></TableCell>
                   <TableCell>{new Date(o.created_at).toLocaleDateString('en-AU')}</TableCell>
-                  <TableCell><Button size="small" variant="outlined">View</Button></TableCell>
+                  <TableCell><Button size="small" variant="outlined" onClick={() => navigate(`/orders/${o.id}`)}>View</Button></TableCell>
                 </TableRow>
               ))}
             </TableBody>

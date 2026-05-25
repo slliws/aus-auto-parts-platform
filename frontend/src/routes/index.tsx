@@ -21,9 +21,12 @@ const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 const CustomersPage = lazy(() => import('../pages/CustomersPage'));
 const CustomerDetailPage = lazy(() => import('../pages/CustomerDetailPage'));
 
-// Placeholder pages for features not yet implemented
-const AnalyticsPage = lazy(() => import('../pages/AnalyticsPage'));
+// Order pages
 const OrdersPage = lazy(() => import('../pages/PlaceholderPages/OrdersPage'));
+const OrderDetailPage = lazy(() => import('../pages/OrderDetailPage'));
+
+// Other feature pages
+const AnalyticsPage = lazy(() => import('../pages/AnalyticsPage'));
 const VehiclesPage = lazy(() => import('../pages/VehiclesPage'));
 const QuotesPage = lazy(() => import('../pages/PlaceholderPages/QuotesPage'));
 const ReportsPage = lazy(() => import('../pages/PlaceholderPages/ReportsPage'));
@@ -63,17 +66,22 @@ const AppRoutes = () => {
           <Route path="/parts" element={<PartsPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/:id" element={<CustomerDetailPage />} />
+
+          {/* Orders */}
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/orders/:id" element={<OrderDetailPage />} />
+
+          {/* Other pages */}
           <Route path="/vehicles" element={<VehiclesPage />} />
-           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/quotes" element={<QuotesPage />} />
           <Route path="/reports" element={<ReportsPage />} />
-          
+
           {/* Legacy marketplace routes */}
           <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/marketplace/:id" element={<ProductDetailPage />} />
           <Route path="/marketplace/category/:categoryId" element={<MarketplacePage />} />
-          
+
           {/* Other protected routes */}
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="/messages/:conversationId" element={<MessagesPage />} />
