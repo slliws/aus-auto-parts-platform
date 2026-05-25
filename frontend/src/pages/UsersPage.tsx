@@ -377,11 +377,13 @@ const UsersPage: React.FC = () => {
                               </IconButton>
                             </Tooltip>
                           )}
+                          {user.id !== currentUser?.id && (
                           <Tooltip title="Edit">
                             <IconButton size="small" color="primary" onClick={() => openEdit(user)}>
                               <EditIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
+                          )}
                           {user.id !== currentUser?.id && (
                             <Tooltip title="Delete">
                               <IconButton size="small" color="error" onClick={() => handleDeleteClick(user)}>
@@ -464,7 +466,12 @@ const UsersPage: React.FC = () => {
                 fullWidth
                 required
                 size="small"
-                helperText="User should change this on first login"
+                error={!!formState.password && formState.password.length < 8}
+                helperText={
+                  formState.password && formState.password.length < 8
+                    ? 'Password must be at least 8 characters'
+                    : 'User should change this on first login'
+                }
               />
             )}
           </Box>
@@ -476,7 +483,7 @@ const UsersPage: React.FC = () => {
             onClick={handleFormSubmit}
             disabled={
               !formState.firstName || !formState.lastName || !formState.email ||
-              (!editingUser && !formState.password)
+              (!editingUser && (!formState.password || formState.password.length < 8))
             }
           >
             {editingUser ? 'Save Changes' : 'Create User'}

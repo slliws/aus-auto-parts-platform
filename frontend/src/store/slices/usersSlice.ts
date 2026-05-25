@@ -126,6 +126,7 @@ export const createUser = createAsyncThunk<User, CreateUserPayload>(
 
 /**
  * Async Thunk: Update User
+ * Backend route is PUT /users/:id (full replacement semantics for profile fields)
  */
 export const updateUser = createAsyncThunk<User, UpdateUserPayload>(
   'users/updateUser',
@@ -312,33 +313,51 @@ const usersSlice = createSlice({
       state.error = action.payload as string;
     });
 
-    // Activate User
+    // Activate User — pending prevents double-fire race condition
+    builder.addCase(activateUser.pending, (state) => {
+      state.loading = 'pending';
+      state.error = null;
+    });
     builder.addCase(activateUser.fulfilled, (state, action) => {
+      state.loading = 'succeeded';
       const index = state.users.findIndex(u => u.id === action.payload.id);
       if (index !== -1) state.users[index] = action.payload;
       state.error = null;
     });
     builder.addCase(activateUser.rejected, (state, action) => {
+      state.loading = 'failed';
       state.error = action.payload as string;
     });
 
-    // Deactivate User
+    // Deactivate User — pending prevents double-fire race condition
+    builder.addCase(deactivateUser.pending, (state) => {
+      state.loading = 'pending';
+      state.error = null;
+    });
     builder.addCase(deactivateUser.fulfilled, (state, action) => {
+      state.loading = 'succeeded';
       const index = state.users.findIndex(u => u.id === action.payload.id);
       if (index !== -1) state.users[index] = action.payload;
       state.error = null;
     });
     builder.addCase(deactivateUser.rejected, (state, action) => {
+      state.loading = 'failed';
       state.error = action.payload as string;
     });
 
-    // Update User Role
+    // Update User Role — pending prevents double-submit on slow networks
+    builder.addCase(updateUserRole.pending, (state) => {
+      state.loading = 'pending';
+      state.error = null;
+    });
     builder.addCase(updateUserRole.fulfilled, (state, action) => {
+      state.loading = 'succeeded';
       const index = state.users.findIndex(u => u.id === action.payload.id);
       if (index !== -1) state.users[index] = action.payload;
       state.error = null;
     });
     builder.addCase(updateUserRole.rejected, (state, action) => {
+      state.loading = 'failed';
       state.error = action.payload as string;
     });
   },
