@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import config from '../config';
 import { logger } from '../utils/logger';
 import { RateLimitError } from '../utils/errors';
-import { SubscriptionTier as PrismaSubscriptionTier } from '@prisma/client';
+import { SubscriptionTier as PrismaSubscriptionTier, UserRole } from '@prisma/client';
 
 /**
  * Rate limiting middleware for the Australian Auto Parts Platform
@@ -73,8 +73,10 @@ const skipRateLimit = (req: Request): boolean => {
     return true;
   }
 
-  // TODO: Add logic to skip rate limiting for admin users or specific IPs
-  // if (req.user?.role === UserRole.ADMIN) return true;
+  // Skip rate limiting for admin users
+  if (req.user?.role === UserRole.ADMIN) {
+    return true;
+  }
 
   return false;
 };
