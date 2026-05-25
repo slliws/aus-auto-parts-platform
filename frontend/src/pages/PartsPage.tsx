@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Box,
   Button,
@@ -51,6 +52,8 @@ import {
   deletePart,
   fetchCategories,
 } from '../services/parts.service';
+import { RootState } from '../store';
+import { selectAuthUser } from '../store/slices/authSlice';
 
 const PartsPage: React.FC = () => {
   // State management
@@ -87,6 +90,10 @@ const PartsPage: React.FC = () => {
 
   // Notifications
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+
+  // Auth / RBAC
+  const currentUser = useSelector((state: RootState) => selectAuthUser(state));
+  const canManage = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
   // Load data functions
   const loadParts = async () => {
@@ -241,7 +248,7 @@ const PartsPage: React.FC = () => {
       case PartCondition.NEW: return 'success';
       case PartCondition.USED_EXCELLENT: return 'info';
       case PartCondition.USED_GOOD: return 'warning';
-      case PartCondition.USED_FAIR: return 'orange';
+      case PartCondition.USED_FAIR: return 'default';
       case PartCondition.RECONDITIONED: return 'secondary';
       case PartCondition.DAMAGED: return 'error';
       default: return 'default';
@@ -262,14 +269,16 @@ const PartsPage: React.FC = () => {
               Manage your auto parts inventory, add new parts, and track stock levels.
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleAddPart}
-            size="large"
-          >
-            Add Part
-          </Button>
+          {canManage && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleAddPart}
+              size="large"
+            >
+              Add Part
+            </Button>
+          )}
         </Box>
 
         {/* Filters and Search */}
@@ -424,16 +433,22 @@ const PartsPage: React.FC = () => {
                       </TableCell>
                       <TableCell>{part.location || '-'}</TableCell>
                       <TableCell align="center">
-                        <Tooltip title="Edit">
-                          <IconButton size="small" onClick={() => handleEditPart(part)}>
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => handleDeletePart(part)}>
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
+                        {canManage ? (
+                          <>
+                            <Tooltip title="Edit">
+                              <IconButton size="small" onClick={() => handleEditPart(part)}>
+                                <EditIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete">
+                              <IconButton size="small" color="error" onClick={() => handleDeletePart(part)}>
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        ) : (
+                          <Typography variant="caption" color="text.disabled">—</Typography>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

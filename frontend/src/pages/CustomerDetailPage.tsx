@@ -34,7 +34,7 @@ import {
   DirectionsCar as CarIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { AppDispatch } from '../store';
+import { AppDispatch, RootState } from '../store';
 import {
   fetchCustomerById,
   fetchCustomerOrders,
@@ -45,6 +45,7 @@ import {
   selectCustomersError,
 } from '../store/slices/customersSlice';
 import { CustomerType } from '../services/customers.service';
+import { selectAuthUser } from '../store/slices/authSlice';
 import CustomerFormDialog from '../components/organisms/customers/CustomerFormDialog';
 
 interface TabPanelProps {
@@ -87,6 +88,8 @@ const CustomerDetailPage: React.FC = () => {
   const customerOrders = useSelector(selectCustomerOrders);
   const loading = useSelector(selectCustomersLoading);
   const error = useSelector(selectCustomersError);
+  const currentUser = useSelector((state: RootState) => selectAuthUser(state));
+  const canDelete = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
   
   // Local state
   const [tabValue, setTabValue] = useState(0);
@@ -118,8 +121,10 @@ const CustomerDetailPage: React.FC = () => {
   // Handle delete customer
   const handleDeleteCustomer = async () => {
     if (id && window.confirm('Are you sure you want to delete this customer?')) {
-      await dispatch(deleteCustomer(id));
-      navigate('/customers');
+      const result = await dispatch(deleteCustomer(id));
+      if (deleteCustomer.fulfilled.match(result)) {
+        navigate('/customers');
+      }
     }
   };
 
@@ -290,14 +295,16 @@ const CustomerDetailPage: React.FC = () => {
           >
             Edit
           </Button>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleDeleteCustomer}
-          >
-            Delete
-          </Button>
+          {canDelete && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleDeleteCustomer}
+            >
+              Delete
+            </Button>
+          )}
         </Box>
       </Box>
 
