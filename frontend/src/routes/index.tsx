@@ -33,7 +33,7 @@ const VehicleDetailPage = lazy(() => import('../pages/VehicleDetailPage'));
 const AnalyticsPage = lazy(() => import('../pages/AnalyticsPage'));
 const QuotesPage = lazy(() => import('../pages/QuotesPage'));
 const QuoteDetailPage = lazy(() => import('../pages/QuoteDetailPage'));
-const ReportsPage = lazy(() => import('../pages/PlaceholderPages/ReportsPage'));
+const ReportsPage = lazy(() => import('../pages/ReportsPage'));
 
 // Loading component for Suspense fallback
 const LoadingFallback = () => (

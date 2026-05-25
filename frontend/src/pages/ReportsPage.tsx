@@ -15,7 +15,7 @@ import {
   AttachMoney as MoneyIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material';
-import { apiService } from '../../services/api.service';
+import { apiService } from '../services/api.service';
 import dayjs from 'dayjs';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
