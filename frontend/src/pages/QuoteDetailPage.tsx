@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   CircularProgress, Alert, IconButton, Tooltip, Dialog, DialogTitle,
   DialogContent, DialogContentText, DialogActions, Select, MenuItem,
-  FormControl, InputLabel, Snackbar, Stack
+  FormControl, InputLabel, Snackbar, Stack, GlobalStyles
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -250,6 +250,19 @@ const QuoteDetailPage: React.FC = () => {
 
   if (!quote) return null;
 
+
+  // ── Print styles ──────────────────────────────────────────────────────────
+  const printStyles = (
+    <GlobalStyles styles={{
+      '@media print': {
+        'header, nav, .MuiAppBar-root, .MuiDrawer-root': { display: 'none !important' },
+        '.MuiToolbar-root': { display: 'none !important' },
+        '#print-hide': { display: 'none !important' },
+        body: { margin: 0 },
+      }
+    }} />
+  );
+
   const expired = isExpired(quote.expires_at);
   const isDraft = quote.status === 'DRAFT';
   const isSent = quote.status === 'SENT';
@@ -260,6 +273,7 @@ const QuoteDetailPage: React.FC = () => {
 
   return (
     <Box sx={{ p: 3, maxWidth: 1100, mx: 'auto' }}>
+      {printStyles}
       {/* ── Header ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -282,7 +296,7 @@ const QuoteDetailPage: React.FC = () => {
             <Chip label="PAST EXPIRY" size="small" color="warning" variant="outlined" />
           )}
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack id="print-hide" direction="row" spacing={1}>
           <Tooltip title="Refresh"><IconButton onClick={load}><RefreshIcon /></IconButton></Tooltip>
           <Tooltip title="Print"><IconButton onClick={() => window.print()}><PrintIcon /></IconButton></Tooltip>
           {isDraft && (
@@ -614,6 +628,12 @@ const QuoteDetailPage: React.FC = () => {
       <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
         <DialogTitle>Delete Quote?</DialogTitle>
         <DialogContent>
+          {isSent && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              This quote has already been sent to the customer. Deleting it will not recall the quote
+              — the customer may still have their copy.
+            </Alert>
+          )}
           <DialogContentText>
             Delete <strong>{quote.quote_number}</strong>? This cannot be undone.
           </DialogContentText>

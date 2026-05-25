@@ -134,7 +134,11 @@ const VehicleDetailPage: React.FC = () => {
     </TableContainer>
   );
 
-  if (loading === 'pending') {
+  // Show loading spinner if: actively fetching, OR the store has a stale vehicle
+  // from a prior navigation (vehicle.id doesn't match the current route id).
+  // This prevents briefly flashing wrong vehicle data when navigating A → B.
+  const isStale = vehicle && id && (vehicle as VehicleWithStatus).id !== id;
+  if (loading === 'pending' || isStale) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
         <CircularProgress />

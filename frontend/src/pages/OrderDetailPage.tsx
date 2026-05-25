@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   CircularProgress, Alert, IconButton, Tooltip, Dialog, DialogTitle,
   DialogContent, DialogContentText, DialogActions, Select, MenuItem,
-  FormControl, InputLabel, Snackbar, Stack
+  FormControl, InputLabel, Snackbar, Stack, GlobalStyles
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -222,6 +222,18 @@ const OrderDetailPage: React.FC = () => {
 
   if (!order) return null;
 
+  // ── Print styles ──────────────────────────────────────────────────────────
+  const printStyles = (
+    <GlobalStyles styles={{
+      '@media print': {
+        'header, nav, .MuiAppBar-root, .MuiDrawer-root': { display: 'none !important' },
+        '.MuiToolbar-root': { display: 'none !important' },
+        '#print-hide': { display: 'none !important' },
+        body: { margin: 0 },
+      }
+    }} />
+  );
+
   const isCancelled = order.status === 'CANCELLED';
   // Use integer cent arithmetic to avoid floating-point accumulation errors
   const totalPaidCents = order.payments
@@ -235,6 +247,7 @@ const OrderDetailPage: React.FC = () => {
 
   return (
     <Box sx={{ p: 3, maxWidth: 1100, mx: 'auto' }}>
+      {printStyles}
       {/* ── Header ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -259,7 +272,7 @@ const OrderDetailPage: React.FC = () => {
             variant="outlined"
           />
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack id="print-hide" direction="row" spacing={1}>
           <Tooltip title="Refresh"><IconButton onClick={load}><RefreshIcon /></IconButton></Tooltip>
           <Tooltip title="Print"><IconButton onClick={() => window.print()}><PrintIcon /></IconButton></Tooltip>
           {!isCancelled && (
