@@ -1,5 +1,9 @@
+import { useEffect } from 'react';
 import styled from '@emotion/styled';
 import { useParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch } from '../store';
+import { fetchCategories, selectCategories } from '../store/slices/partsSlice';
 import PageContainer from '../components/templates/PageContainer';
 import TwoColumnLayout from '../components/templates/TwoColumnLayout';
 import FilterPanel from '../components/organisms/marketplace/FilterPanel';
@@ -52,17 +56,26 @@ const CategoryTitle = styled.h1`
  */
 const MarketplacePage = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
+  const dispatch = useDispatch<AppDispatch>();
+  const categories = useSelector(selectCategories);
 
-  const getCategoryTitle = () => {
+  // Ensure categories are loaded so we can resolve the name
+  useEffect(() => {
+    if (categories.length === 0) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, categories.length]);
+
+  const getCategoryTitle = (): string => {
     if (!categoryId) return 'All Parts';
-    // TODO: Map categoryId to category name from Redux store
-    return `Category: ${categoryId}`;
+    const match = categories.find((c) => String(c.id) === categoryId);
+    return match ? match.name : `Category: ${categoryId}`;
   };
 
   return (
     <PageContainer>
       {categoryId && <CategoryTitle>{getCategoryTitle()}</CategoryTitle>}
-      
+
       <MarketplaceHeader>
         <SearchSection>
           <SearchBar />
