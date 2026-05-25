@@ -631,4 +631,7 @@ export const selectLowStockParts = (state: RootState) =>
 export const selectPartsByCategory = (state: RootState, category: string) =>
   state.parts.parts.filter(part => part.category === category);
 
-export default partsSlice.reducer;
+export default partsSlice.reducer;export const selectCategories = (state: RootState) => state.parts.categories;
+export const selectFavoritePartIds = (state: RootState) => state.parts.favoriteParts;
+export const selectFavoritePartsData = (state: RootState) =>
+  state.parts.parts.filter(part => state.parts.favoriteParts.includes(part.id));

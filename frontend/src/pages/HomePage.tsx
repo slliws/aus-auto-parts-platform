@@ -1,17 +1,21 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch } from '../store';
 import styled from '@emotion/styled';
 import PageContainer from '../components/templates/PageContainer';
 import ProductGrid from '../components/organisms/marketplace/ProductGrid';
 import CategoryBrowser from '../components/organisms/marketplace/CategoryBrowser';
-
-// Sample categories for demo
-const sampleCategories = [
-  { id: '1', name: 'Brake Parts', count: 156 },
-  { id: '2', name: 'Engine Parts', count: 243 },
-  { id: '3', name: 'Suspension', count: 89 },
-  { id: '4', name: 'Electrical', count: 127 },
-  { id: '5', name: 'Body Parts', count: 94 },
-  { id: '6', name: 'Filters', count: 78 },
-];
+import {
+  fetchParts,
+  fetchCategories,
+  savePartToFavorites,
+  removePartFromFavorites,
+  selectParts,
+  selectPartsLoading,
+  selectCategories,
+  selectFavoritePartIds,
+} from '../store/slices/partsSlice';
 
 const HomeContent = styled.div`
   display: flex;
@@ -59,23 +63,50 @@ const WelcomeSection = styled.div`
 
 /**
  * HomePage Component
- * Landing page with marketplace overview and featured categories
+ * Landing page with live marketplace overview and featured categories
  */
 const HomePage = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+
+  const parts = useSelector(selectParts);
+  const loading = useSelector(selectPartsLoading);
+  const categories = useSelector(selectCategories);
+  const favoriteIds = useSelector(selectFavoritePartIds);
+
+  // Load parts and categories on mount
+  useEffect(() => {
+    dispatch(fetchParts({ page: 1, limit: 20 }));
+    dispatch(fetchCategories());
+  }, [dispatch]);
+
   const handleCategoryClick = (categoryId: string) => {
-    console.log('Category clicked:', categoryId);
-    // TODO: Implement category filtering
+    navigate(`/marketplace/category/${categoryId}`);
   };
 
   const handleProductClick = (id: string) => {
-    console.log('Product clicked:', id);
-    // TODO: Navigate to product detail page
+    navigate(`/marketplace/${id}`);
   };
 
   const handleSaveToggle = (id: string, saved: boolean) => {
-    console.log('Save toggled:', id, saved);
-    // TODO: Implement save/unsave functionality
+    if (saved) {
+      dispatch(savePartToFavorites(id));
+    } else {
+      // removePartFromFavorites needs the favoriteId — for now use the partId as identifier
+      dispatch(removePartFromFavorites({ partId: id, favoriteId: id }));
+    }
   };
+
+  // Map parts to ProductCardProps shape
+  const products = parts.map(part => ({
+    id: part.id,
+    title: part.name,
+    price: part.sellingPrice,
+    imageSrc: '',
+    location: part.location ?? undefined,
+    condition: 'used' as const,
+    isSaved: favoriteIds.includes(part.id),
+  }));
 
   return (
     <PageContainer>
@@ -85,13 +116,16 @@ const HomePage = () => {
           <p>Find quality parts for your vehicle</p>
         </WelcomeSection>
 
-        <CategoryBrowser
-          categories={sampleCategories}
-          onCategoryClick={handleCategoryClick}
-        />
+        {categories.length > 0 && (
+          <CategoryBrowser
+            categories={categories}
+            onCategoryClick={handleCategoryClick}
+          />
+        )}
 
         <ProductGrid
-          products={[]}
+          products={products}
+          loading={loading === 'pending'}
           emptyMessage="No products available. Check back soon!"
           onProductClick={handleProductClick}
           onSaveToggle={handleSaveToggle}

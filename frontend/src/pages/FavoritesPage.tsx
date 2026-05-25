@@ -1,6 +1,17 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch } from '../store';
 import styled from '@emotion/styled';
 import PageContainer from '../components/templates/PageContainer';
 import ProductGrid from '../components/organisms/marketplace/ProductGrid';
+import {
+  fetchFavoriteParts,
+  removePartFromFavorites,
+  selectPartsLoading,
+  selectFavoritePartIds,
+  selectFavoritePartsData,
+} from '../store/slices/partsSlice';
 
 const FavoritesContent = styled.div`
   padding: 16px;
@@ -60,11 +71,41 @@ const EmptyState = styled.div`
 
 /**
  * FavoritesPage Component
- * Displays user's saved/favorite parts
+ * Displays user's saved/favorite parts from Redux store
  */
 const FavoritesPage = () => {
-  // TODO: Get favorites from Redux store
-  const hasFavorites = false; // Placeholder
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+
+  const favoriteIds = useSelector(selectFavoritePartIds);
+  const favoriteParts = useSelector(selectFavoritePartsData);
+  const loading = useSelector(selectPartsLoading);
+
+  // Load favorites on mount
+  useEffect(() => {
+    dispatch(fetchFavoriteParts());
+  }, [dispatch]);
+
+  const hasFavorites = favoriteIds.length > 0;
+
+  const handleProductClick = (id: string) => {
+    navigate(`/marketplace/${id}`);
+  };
+
+  const handleSaveToggle = (id: string, _saved: boolean) => {
+    // Always removing when toggled from FavoritesPage (unsave)
+    dispatch(removePartFromFavorites({ partId: id, favoriteId: id }));
+  };
+
+  const products = favoriteParts.map(part => ({
+    id: part.id,
+    title: part.name,
+    price: part.sellingPrice,
+    imageSrc: '',
+    location: part.location ?? undefined,
+    condition: 'used' as const,
+    isSaved: true,
+  }));
 
   return (
     <PageContainer>
@@ -75,7 +116,12 @@ const FavoritesPage = () => {
         </PageHeader>
 
         {hasFavorites ? (
-          <ProductGrid />
+          <ProductGrid
+            products={products}
+            loading={loading === 'pending'}
+            onProductClick={handleProductClick}
+            onSaveToggle={handleSaveToggle}
+          />
         ) : (
           <EmptyState>
             <h2>No saved parts yet</h2>
