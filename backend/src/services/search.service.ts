@@ -2,11 +2,17 @@
  * Search service
  * Handles global search functionality across multiple entities
  * Implements tenant isolation and relevance scoring
+ * Redis result caching added (5-min TTL, cache-aside, non-fatal fallback)
  */
 
+import { createHash } from 'crypto';
 import prisma from '../models/prisma';
 import { logger } from '../utils/logger';
+import { getCache, setCache } from '../config/redis';
 import { Customer, Part, Vehicle } from '@prisma/client';
+
+/** Cache TTL for search results (seconds) */
+const SEARCH_CACHE_TTL = 300; // 5 minutes
 
 /**
  * Enum for entity types
@@ -77,6 +83,62 @@ export interface PaginationParams {
   pageSize?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Cache helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a stable Redis cache key for a search query.
+ * Key pattern: search:{tenantId}:{md5(normalised-params)}
+ */
+const buildSearchCacheKey = (
+  namespace: string,
+  tenantId: string,
+  query: string,
+  filters: SearchFilters,
+  pagination: PaginationParams
+): string => {
+  const payload = JSON.stringify({
+    query: query.toLowerCase().trim(),
+    filters,
+    pagination,
+  });
+  const hash = createHash('md5').update(payload).digest('hex');
+  return `search:${namespace}:${tenantId}:${hash}`;
+};
+
+/**
+ * Try to read a cached search result. Returns null on miss or Redis error.
+ */
+async function readCache<T>(key: string): Promise<T | null> {
+  try {
+    const raw = await getCache(key);
+    if (raw) {
+      logger.debug('Search cache hit', { key });
+      return JSON.parse(raw) as T;
+    }
+  } catch (err) {
+    logger.warn('Search cache read error (non-fatal)', { key, err });
+  }
+  return null;
+}
+
+/**
+ * Write a search result to cache. Never throws.
+ */
+async function writeCache(key: string, value: unknown): Promise<void> {
+  try {
+    await setCache(key, JSON.stringify(value), SEARCH_CACHE_TTL);
+    logger.debug('Search cache written', { key, ttl: SEARCH_CACHE_TTL });
+  } catch (err) {
+    logger.warn('Search cache write error (non-fatal)', { key, err });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Relevance scoring
+// ---------------------------------------------------------------------------
+
 /**
  * Calculate relevance score for a search result based on how well it matches the query
  * Higher score means more relevant
@@ -115,6 +177,10 @@ const calculateRelevance = (
   const maxPossibleScore = searchFields.reduce((sum, { weight }) => sum + weight, 0);
   return Math.round((score / maxPossibleScore) * 100);
 };
+
+// ---------------------------------------------------------------------------
+// Entity mappers
+// ---------------------------------------------------------------------------
 
 /**
  * Map a part to a search result
@@ -156,6 +222,10 @@ const mapVehicleToSearchResult = (vehicle: Vehicle, relevance: number): SearchRe
   relevance
 });
 
+// ---------------------------------------------------------------------------
+// Entity search functions (with per-entity caching)
+// ---------------------------------------------------------------------------
+
 /**
  * Search parts by query with tenant isolation
  */
@@ -165,6 +235,12 @@ const searchParts = async (
   filters: SearchFilters,
   pagination: PaginationParams
 ): Promise<EntitySearchResults> => {
+  const cacheKey = buildSearchCacheKey('parts', tenantId, query, filters, pagination);
+
+  // Cache check
+  const cached = await readCache<EntitySearchResults>(cacheKey);
+  if (cached) return cached;
+
   const page = pagination.page || 1;
   const pageSize = pagination.pageSize || 10;
   const skip = (page - 1) * pageSize;
@@ -221,10 +297,12 @@ const searchParts = async (
   // Sort results by relevance score (descending)
   results.sort((a, b) => b.relevance - a.relevance);
   
-  return {
-    total: totalCount,
-    results
-  };
+  const entityResults: EntitySearchResults = { total: totalCount, results };
+
+  // Cache the result
+  await writeCache(cacheKey, entityResults);
+
+  return entityResults;
 };
 
 /**
@@ -236,6 +314,12 @@ const searchCustomers = async (
   filters: SearchFilters,
   pagination: PaginationParams
 ): Promise<EntitySearchResults> => {
+  const cacheKey = buildSearchCacheKey('customers', tenantId, query, filters, pagination);
+
+  // Cache check
+  const cached = await readCache<EntitySearchResults>(cacheKey);
+  if (cached) return cached;
+
   const page = pagination.page || 1;
   const pageSize = pagination.pageSize || 10;
   const skip = (page - 1) * pageSize;
@@ -289,11 +373,13 @@ const searchCustomers = async (
   
   // Sort results by relevance score (descending)
   results.sort((a, b) => b.relevance - a.relevance);
-  
-  return {
-    total: totalCount,
-    results
-  };
+
+  const entityResults: EntitySearchResults = { total: totalCount, results };
+
+  // Cache the result
+  await writeCache(cacheKey, entityResults);
+
+  return entityResults;
 };
 
 /**
@@ -305,6 +391,12 @@ const searchVehicles = async (
   filters: SearchFilters,
   pagination: PaginationParams
 ): Promise<EntitySearchResults> => {
+  const cacheKey = buildSearchCacheKey('vehicles', tenantId, query, filters, pagination);
+
+  // Cache check
+  const cached = await readCache<EntitySearchResults>(cacheKey);
+  if (cached) return cached;
+
   const page = pagination.page || 1;
   const pageSize = pagination.pageSize || 10;
   const skip = (page - 1) * pageSize;
@@ -366,12 +458,18 @@ const searchVehicles = async (
   
   // Sort results by relevance score (descending)
   results.sort((a, b) => b.relevance - a.relevance);
-  
-  return {
-    total: totalCount,
-    results
-  };
+
+  const entityResults: EntitySearchResults = { total: totalCount, results };
+
+  // Cache the result
+  await writeCache(cacheKey, entityResults);
+
+  return entityResults;
 };
+
+// ---------------------------------------------------------------------------
+// Public search API (with global-search level caching)
+// ---------------------------------------------------------------------------
 
 /**
  * Execute a global search across all entities
@@ -385,6 +483,14 @@ export const globalSearch = async (
 ): Promise<SearchResponse> => {
   const page = pagination.page || 1;
   const pageSize = pagination.pageSize || 10;
+
+  // Cache check at the aggregate level
+  const cacheKey = buildSearchCacheKey('global', tenantId, query, filters, pagination);
+  const cached = await readCache<SearchResponse>(cacheKey);
+  if (cached) {
+    logger.info('Global search served from cache', { tenantId, query, userId });
+    return cached;
+  }
   
   // Determine which entities to search based on filters
   const searchEntities = filters.entityTypes || Object.values(EntityType);
@@ -436,6 +542,9 @@ export const globalSearch = async (
   if (includeVehicles) {
     response.vehicles = vehiclesResults;
   }
+
+  // Cache the aggregate result
+  await writeCache(cacheKey, response);
   
   return response;
 };
