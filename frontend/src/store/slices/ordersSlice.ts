@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../index';
+import apiService from '../../services/api.service';
 
 /**
  * Orders State Interface
@@ -164,12 +165,22 @@ export const fetchOrders = createAsyncThunk<FetchOrdersResponse, FetchOrdersPara
   'orders/fetchOrders',
   async (params, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to GET /api/v1/orders
-      // const response = await ordersAPI.getOrders(params);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const queryParams: Record<string, any> = {
+        page: params.page ?? 1,
+        limit: params.limit ?? 20,
+        ...params.filters,
+      };
+      const res = await apiService.get('/orders', { params: queryParams });
+      const body = res.data;
+      // Normalise to { data, meta } regardless of backend envelope shape
+      const data: Order[] = body.data ?? body.items ?? body.orders ?? [];
+      const meta: PaginationMeta = body.meta ?? {
+        currentPage: body.page ?? queryParams.page,
+        totalPages: body.totalPages ?? 1,
+        totalItems: body.total ?? body.totalItems ?? data.length,
+        itemsPerPage: body.pageSize ?? queryParams.limit,
+      };
+      return { data, meta };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch orders');
     }
@@ -184,12 +195,21 @@ export const fetchQuotes = createAsyncThunk<FetchQuotesResponse, FetchOrdersPara
   'orders/fetchQuotes',
   async (params, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to GET /api/v1/quotes
-      // const response = await ordersAPI.getQuotes(params);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const queryParams: Record<string, any> = {
+        page: params.page ?? 1,
+        limit: params.limit ?? 20,
+        ...params.filters,
+      };
+      const res = await apiService.get('/quotes', { params: queryParams });
+      const body = res.data;
+      const data: Quote[] = body.data ?? body.items ?? body.quotes ?? [];
+      const meta: PaginationMeta = body.meta ?? {
+        currentPage: body.page ?? queryParams.page,
+        totalPages: body.totalPages ?? 1,
+        totalItems: body.total ?? body.totalItems ?? data.length,
+        itemsPerPage: body.pageSize ?? queryParams.limit,
+      };
+      return { data, meta };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch quotes');
     }
@@ -204,12 +224,8 @@ export const createQuote = createAsyncThunk<Quote, CreateQuotePayload>(
   'orders/createQuote',
   async (quoteData, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to POST /api/v1/quotes
-      // const response = await ordersAPI.createQuote(quoteData);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.post('/quotes', quoteData);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create quote');
     }
@@ -224,12 +240,8 @@ export const updateQuote = createAsyncThunk<Quote, UpdateQuotePayload>(
   'orders/updateQuote',
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to PUT /api/v1/quotes/:id
-      // const response = await ordersAPI.updateQuote(id, data);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.patch(`/quotes/${id}`, data);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update quote');
     }
@@ -244,12 +256,8 @@ export const convertQuoteToOrder = createAsyncThunk<Order, string>(
   'orders/convertQuoteToOrder',
   async (quoteId, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to POST /api/v1/quotes/:id/convert
-      // const response = await ordersAPI.convertQuoteToOrder(quoteId);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.post(`/quotes/${quoteId}/convert`);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to convert quote to order');
     }
@@ -264,12 +272,8 @@ export const createOrder = createAsyncThunk<Order, CreateOrderPayload>(
   'orders/createOrder',
   async (orderData, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to POST /api/v1/orders
-      // const response = await ordersAPI.createOrder(orderData);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.post('/orders', orderData);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create order');
     }
@@ -284,12 +288,8 @@ export const updateOrder = createAsyncThunk<Order, UpdateOrderPayload>(
   'orders/updateOrder',
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to PUT /api/v1/orders/:id
-      // const response = await ordersAPI.updateOrder(id, data);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.patch(`/orders/${id}`, data);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update order');
     }
@@ -304,12 +304,8 @@ export const fetchOrderById = createAsyncThunk<Order, string>(
   'orders/fetchOrderById',
   async (orderId, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to GET /api/v1/orders/:id
-      // const response = await ordersAPI.getOrderById(orderId);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.get(`/orders/${orderId}`);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch order');
     }
@@ -324,12 +320,8 @@ export const fetchQuoteById = createAsyncThunk<Quote, string>(
   'orders/fetchQuoteById',
   async (quoteId, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to GET /api/v1/quotes/:id
-      // const response = await ordersAPI.getQuoteById(quoteId);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.get(`/quotes/${quoteId}`);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch quote');
     }
@@ -344,12 +336,8 @@ export const cancelOrder = createAsyncThunk<Order, string>(
   'orders/cancelOrder',
   async (orderId, { rejectWithValue }) => {
     try {
-      // TODO: Implement API call to POST /api/v1/orders/:id/cancel
-      // const response = await ordersAPI.cancelOrder(orderId);
-      // return response.data;
-      
-      // Placeholder for Phase 3
-      throw new Error('API implementation pending');
+      const res = await apiService.post(`/orders/${orderId}/cancel`);
+      return res.data.data ?? res.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to cancel order');
     }
