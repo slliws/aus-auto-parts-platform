@@ -101,6 +101,29 @@ export const decodeToken = (token: string): JwtPayload | null => {
 };
 
 /**
+ * Get current user role from access token
+ */
+export const getCurrentUserRole = (): string | null => {
+  const token = getAccessToken();
+  if (!token) return null;
+  const decoded = decodeToken(token);
+  return decoded?.role ?? null;
+};
+
+/**
+ * Check if current user has permission (role-based)
+ */
+export const hasRole = (requiredRole: string | string[]): boolean => {
+  const userRole = getCurrentUserRole();
+  if (!userRole) return false;
+  
+  if (Array.isArray(requiredRole)) {
+    return requiredRole.includes(userRole);
+  }
+  return userRole === requiredRole;
+};
+
+/**
  * Check if token is valid and not expired
  */
 export const isTokenValid = (token: string | null): boolean => {
@@ -244,4 +267,6 @@ export default {
   refreshToken,
   logoutUser,
   initializeAuthRefreshTimer,
+  getCurrentUserRole,
+  hasRole,
 };
