@@ -37,3 +37,8 @@ AusAutoPartsDemo/
 AusAutoPartsDemo.zip
 autoaprtsapp.zip
 word-documents/
+
+# Production environment (never commit)
+backend/.env.prod
+frontend/.env.prod
+.env.prod
