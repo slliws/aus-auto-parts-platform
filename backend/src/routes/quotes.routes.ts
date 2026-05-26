@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticate } from '../middleware/auth';
+import { setTenantContext } from '../middleware/tenantContext';
 import { validateBody } from '../middleware/validator';
 import { quotesValidation } from '../utils/validators';
 import * as quotesController from '../controllers/quotes.controller';
@@ -11,8 +13,22 @@ import * as quotesController from '../controllers/quotes.controller';
 
 const router = Router();
 
-// All routes require authentication
+// All routes require authentication + tenant context
 router.use(authenticate);
+router.use(setTenantContext);
+
+/**
+ * PDF rate limiter — prevents in-memory buffer DoS from concurrent large PDF requests.
+ * Max 10 PDF downloads per user per minute.
+ */
+const pdfRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  keyGenerator: (req: any) => req.user?.id ?? req.ip,
+  message: { success: false, message: 'Too many PDF requests — please wait a minute and try again' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * @route   GET /api/v1/quotes/stats
@@ -80,8 +96,9 @@ router.post('/:id/convert', quotesController.convertQuote);
  * @route   GET /api/v1/quotes/:id/pdf
  * @desc    Download quote as PDF
  * @access  Private
+ * Rate-limited: max 10 downloads per user per minute to prevent buffer DoS.
  */
-router.get('/:id/pdf', quotesController.downloadQuotePDF);
+router.get('/:id/pdf', pdfRateLimit, quotesController.downloadQuotePDF);
 
 /**
  * @route   DELETE /api/v1/quotes/:id

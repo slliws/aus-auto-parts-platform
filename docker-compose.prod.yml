@@ -83,10 +83,16 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
+    # No direct port binding — TLS termination handled by nginx-proxy sidecar.
+    # nginx-proxy discovers this container via VIRTUAL_HOST + LETSENCRYPT_HOST env vars.
+    environment:
+      VIRTUAL_HOST: ${APP_DOMAIN}
+      VIRTUAL_PORT: 80
+      LETSENCRYPT_HOST: ${APP_DOMAIN}
+      LETSENCRYPT_EMAIL: ${ACME_EMAIL}
     networks:
       - internal
+      - proxy
     deploy:
       resources:
         limits:
@@ -149,9 +155,14 @@ services:
       --loglevel warning
       --maxmemory 128mb
       --maxmemory-policy allkeys-lru
-      --requirepass ${REDIS_PASSWORD}
+      --aclfile /etc/redis/acl.conf
+    # NOTE: Password is in redis/acl.conf (not --requirepass) so it does NOT appear
+    # in `docker inspect` output (which exposes command-line args).
+    # Before deploy: cp redis/acl.conf.template redis/acl.conf
+    #                Replace <REDIS_PASSWORD_HERE> with your actual password.
     volumes:
       - redis_data_prod:/data
+      - ./redis/acl.conf:/etc/redis/acl.conf:ro
     # No ports: — Redis is INTERNAL only in production.
     networks:
       - internal
@@ -163,7 +174,8 @@ services:
         reservations:
           memory: 64M
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      # Use redis-cli with --no-auth-warning and ACL auth to avoid password in process list
+      test: ["CMD-SHELL", "redis-cli -a $(grep 'user default' /etc/redis/acl.conf | grep -oP '(?<=>)\S+') ping 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -173,8 +185,74 @@ services:
         max-size: "5m"
         max-file: "2"
 
+
+  # ─── TLS Termination ─────────────────────────────────────────────────────────
+  # nginx-proxy + acme-companion: automatic Let's Encrypt certificates.
+  # Set APP_DOMAIN and ACME_EMAIL in .env.prod before first deploy.
+  # Exposes :80 (redirects to HTTPS) and :443 (TLS).
+  #
+  # OPTION: If you use Cloudflare or another external TLS proxy, remove these
+  # two services and restore the frontend ports: binding above.
+
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:1.5
+    container_name: aus-auto-parts-nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - nginx_certs:/etc/nginx/certs
+      - nginx_vhost:/etc/nginx/vhost.d
+      - nginx_html:/usr/share/nginx/html
+    networks:
+      - internal
+      - proxy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  acme-companion:
+    image: nginxproxy/acme-companion:2.4
+    container_name: aus-auto-parts-acme
+    restart: unless-stopped
+    depends_on:
+      - nginx-proxy
+    environment:
+      DEFAULT_EMAIL: ${ACME_EMAIL}
+      NGINX_PROXY_CONTAINER: aus-auto-parts-nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx_certs:/etc/nginx/certs
+      - nginx_vhost:/etc/nginx/vhost.d
+      - nginx_html:/usr/share/nginx/html
+      - acme_state:/etc/acme.sh
+    networks:
+      - proxy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
 networks:
   internal:
+    driver: bridge
+  proxy:
+    name: nginx-proxy
     driver: bridge
 
 volumes:
@@ -182,3 +260,11 @@ volumes:
     name: aus-auto-parts-postgres-prod
   redis_data_prod:
     name: aus-auto-parts-redis-prod
+  nginx_certs:
+    name: aus-auto-parts-nginx-certs
+  nginx_vhost:
+    name: aus-auto-parts-nginx-vhost
+  nginx_html:
+    name: aus-auto-parts-nginx-html
+  acme_state:
+    name: aus-auto-parts-acme-state

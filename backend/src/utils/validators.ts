@@ -510,7 +510,7 @@ export const quotesValidation = {
           }),
         notes: Joi.string().trim().max(500).optional().allow(null, ''),
       })
-    ).min(1).required()
+    ).min(1).max(500).required() // max(500) prevents unbounded PDF generation (DoS)
       .messages({
         'array.min': 'At least one quote item is required',
         'any.required': 'Quote items are required',

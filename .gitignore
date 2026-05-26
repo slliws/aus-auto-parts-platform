@@ -42,3 +42,6 @@ word-documents/
 backend/.env.prod
 frontend/.env.prod
 .env.prod
+
+# Redis ACL (contains password — never commit)
+redis/acl.conf

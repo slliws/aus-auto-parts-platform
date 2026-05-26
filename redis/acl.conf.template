@@ -1,0 +1,12 @@
+# Redis ACL configuration
+# ============================================================
+# IMPORTANT: Replace <REDIS_PASSWORD_HERE> with your actual
+# Redis password, then mount this file as redis/acl.conf
+# (do NOT commit acl.conf to git — only acl.conf.template)
+#
+# Avoids Redis password appearing in `docker inspect` output
+# (which exposes env vars and command-line args).
+# ============================================================
+
+# Default user — no login without password, full permissions
+user default on ><REDIS_PASSWORD_HERE> allkeys allcommands

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticate } from '../middleware/auth';
 import { setTenantContext } from '../middleware/tenantContext';
 import ordersController from '../controllers/orders.controller';
@@ -15,6 +16,19 @@ router.use(setTenantContext);
  * All routes are protected by authentication and tenant context middleware
  */
 
+/**
+ * PDF rate limiter — prevents in-memory buffer DoS from concurrent large invoice requests.
+ * Max 10 PDF downloads per user per minute.
+ */
+const pdfRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  keyGenerator: (req: any) => req.user?.id ?? req.ip,
+  message: { success: false, message: 'Too many PDF requests — please wait a minute and try again' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Validation schemas
 const createOrderSchema = Joi.object({
   customerId: Joi.string().uuid().required(),
@@ -25,14 +39,14 @@ const createOrderSchema = Joi.object({
       quantity: Joi.number().integer().min(1).required(),
       unitPrice: Joi.number().min(0).optional(),
     })
-  ).min(1).required(),
-  notes: Joi.string().optional(),
-  internalNotes: Joi.string().optional(),
+  ).min(1).max(500).required(), // max(500) prevents unbounded invoice PDF generation (DoS)
+  notes: Joi.string().max(5000).optional(),
+  internalNotes: Joi.string().max(5000).optional(),
 });
 
 const updateOrderSchema = Joi.object({
-  notes: Joi.string().optional(),
-  internalNotes: Joi.string().optional(),
+  notes: Joi.string().max(5000).optional(),
+  internalNotes: Joi.string().max(5000).optional(),
   status: Joi.string().valid('PENDING', 'PICKING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED').optional(),
 });
 
@@ -127,9 +141,11 @@ router.get(
 /**
  * GET /api/v1/orders/:id/invoice
  * Download order invoice as PDF
+ * Rate-limited: max 10 downloads per user per minute to prevent buffer DoS.
  */
 router.get(
   '/:id/invoice',
+  pdfRateLimit,
   validateParams(idParamSchema),
   ordersController.downloadOrderInvoice
 );

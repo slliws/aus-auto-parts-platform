@@ -41,6 +41,37 @@ export interface VehicleDetails {
 const NHTSA_BASE_URL = 'https://vpic.nhtsa.dot.gov/api/vehicles/decodevin';
 const NHTSA_TIMEOUT_MS = 5000;
 
+// ─── In-Process VIN Cache ──────────────────────────────────────────────────────
+// Cache decoded VINs for 24h — a VIN is permanently tied to one vehicle spec,
+// so results never become stale. Prevents N concurrent callers each waiting 5s
+// on NHTSA for the same VIN (common during vehicle intake workflows).
+// Max 1000 entries; each entry is ~300 bytes ≈ 300KB ceiling.
+
+interface CacheEntry {
+  result: VehicleDetails;
+  expiresAt: number;
+}
+
+const VIN_CACHE = new Map<string, CacheEntry>();
+const VIN_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const VIN_CACHE_MAX = 1000;
+
+const vinCacheGet = (vin: string): VehicleDetails | null => {
+  const entry = VIN_CACHE.get(vin);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { VIN_CACHE.delete(vin); return null; }
+  return entry.result;
+};
+
+const vinCacheSet = (vin: string, result: VehicleDetails): void => {
+  // Evict oldest entry if at capacity
+  if (VIN_CACHE.size >= VIN_CACHE_MAX) {
+    const oldest = VIN_CACHE.keys().next().value;
+    if (oldest) VIN_CACHE.delete(oldest);
+  }
+  VIN_CACHE.set(vin, { result, expiresAt: Date.now() + VIN_CACHE_TTL_MS });
+};
+
 interface NhtsaResult {
   Variable: string;
   Value: string | null;
