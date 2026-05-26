@@ -123,4 +123,15 @@ router.get(
   ordersController.getCustomerOrders
 );
 
+
+/**
+ * GET /api/v1/orders/:id/invoice
+ * Download order invoice as PDF
+ */
+router.get(
+  '/:id/invoice',
+  validateParams(idParamSchema),
+  ordersController.downloadOrderInvoice
+);
+
 export default router;

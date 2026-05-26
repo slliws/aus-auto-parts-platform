@@ -5,6 +5,7 @@ import * as ordersService from '../services/orders.service';
 import { logger } from '../utils/logger';
 import * as emailService from '../services/email.service';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
+import PDFService from '../services/pdf.service';
 
 /**
  * Orders controller
@@ -302,6 +303,33 @@ export const getCustomerOrders = asyncHandler(
   }
 );
 
+
+/**
+ * Download order invoice as PDF
+ * @route GET /api/v1/orders/:id/invoice
+ */
+export const downloadOrderInvoice = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+    const userId = req.user?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = { success: false, message: 'Tenant context not found' };
+      res.status(400).json(response);
+      return;
+    }
+
+    const order = await ordersService.getOrderById(id, tenantId, userId);
+    const pdfBuffer = await PDFService.generateInvoicePDF(order);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${order.order_number}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.status(200).end(pdfBuffer);
+  }
+);
+
 export default {
   getOrders,
   getOrderById,
@@ -309,4 +337,5 @@ export default {
   updateOrder,
   cancelOrder,
   getCustomerOrders,
+  downloadOrderInvoice,
 };

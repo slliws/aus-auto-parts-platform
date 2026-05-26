@@ -75,6 +75,14 @@ router.post(
  */
 router.post('/:id/convert', quotesController.convertQuote);
 
+
+/**
+ * @route   GET /api/v1/quotes/:id/pdf
+ * @desc    Download quote as PDF
+ * @access  Private
+ */
+router.get('/:id/pdf', quotesController.downloadQuotePDF);
+
 /**
  * @route   DELETE /api/v1/quotes/:id
  * @desc    Delete quote (soft delete)

@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { ApiResponse } from '../types';
 import * as quotesService from '../services/quotes.service';
 import { logger } from '../utils/logger';
+import PDFService from '../services/pdf.service';
 
 /**
  * Quotes controller
@@ -336,6 +337,33 @@ export const getQuoteStats = asyncHandler(
   }
 );
 
+
+/**
+ * Download quote as PDF
+ * @route GET /api/v1/quotes/:id/pdf
+ */
+export const downloadQuotePDF = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { id } = req.params;
+    const tenantId = req.tenant?.id;
+    const userId = req.user?.id;
+
+    if (!tenantId) {
+      const response: ApiResponse = { success: false, message: 'Tenant context not found' };
+      res.status(400).json(response);
+      return;
+    }
+
+    const quote = await quotesService.getQuoteById(id, tenantId, userId);
+    const pdfBuffer = await PDFService.generateQuotePDF(quote);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="quote-${quote.quote_number}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.status(200).end(pdfBuffer);
+  }
+);
+
 export default {
   getQuotes,
   getQuoteById,
@@ -345,4 +373,5 @@ export default {
   convertQuote,
   deleteQuote,
   getQuoteStats,
+  downloadQuotePDF,
 };
