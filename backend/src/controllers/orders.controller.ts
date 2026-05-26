@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { ApiResponse } from '../types';
 import * as ordersService from '../services/orders.service';
 import { logger } from '../utils/logger';
+import * as emailService from '../services/email.service';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
 
 /**
@@ -152,6 +153,24 @@ export const createOrder = asyncHandler(
       getIpAddress(req),
       getUserAgent(req)
     );
+
+    // Send order confirmation email (async, non-blocking — failure never breaks the response)
+    if (order.customer?.email) {
+      const customerName = [order.customer.first_name, order.customer.last_name]
+        .filter(Boolean).join(' ') || order.customer.email;
+      emailService.sendOrderConfirmationEmail(
+        order.customer.email,
+        order.order_number,
+        customerName,
+        order.total_amount,
+        'AUD'
+      ).catch(err =>
+        logger.warn('[orders] Order confirmation email failed', {
+          orderId: order.id,
+          error: err.message,
+        })
+      );
+    }
 
     const response: ApiResponse = {
       success: true,

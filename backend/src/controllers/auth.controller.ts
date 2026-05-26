@@ -41,12 +41,17 @@ export const register = asyncHandler(
       getUserAgent(req)
     );
 
+    // Verification token is emailed — never expose it in the API response
+    // (avoids token leakage via API logs, proxies, or client-side JS)
+    const isDev = process.env.NODE_ENV !== 'production';
+
     const response: ApiResponse = {
       success: true,
-      message: 'User registered successfully. Please verify your email.',
+      message: 'User registered successfully. Please check your email to verify your account.',
       data: {
         user: result.user,
-        verificationToken: result.verificationToken, // In production, this would be emailed
+        // Only include token in dev/test environments for easier local testing
+        ...(isDev && { verificationToken: result.verificationToken }),
       },
     };
 
@@ -136,7 +141,10 @@ export const forgotPassword = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const { email } = req.body;
 
-    const resetToken = await authService.requestPasswordReset(
+    // Token is emailed — do not expose it in the API response
+    // (constant-time response prevents email enumeration regardless of whether
+    //  the account exists — auth service already handles the dummy token path)
+    await authService.requestPasswordReset(
       email,
       getIpAddress(req),
       getUserAgent(req)
@@ -145,9 +153,6 @@ export const forgotPassword = asyncHandler(
     const response: ApiResponse = {
       success: true,
       message: 'If an account with that email exists, a password reset link has been sent.',
-      data: {
-        resetToken, // In production, this would be emailed, not returned
-      },
     };
 
     res.status(200).json(response);
