@@ -5,7 +5,7 @@
 
 import prisma from '../models/prisma';
 import { logger } from '../utils/logger';
-import { NotFoundError, ConflictError, AuthenticationError } from '../utils/errors';
+import { NotFoundError, ConflictError, AuthenticationError, AuthorizationError } from '../utils/errors';
 import { UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import config from '../config';
@@ -589,10 +589,22 @@ export const changePassword = async (
 export const updateRole = async (
   tenantId: string,
   userId: string,
-  newRole: UserRole
+  newRole: UserRole,
+  requestingUserId: string,
+  requestingUserRole: UserRole
 ): Promise<any> => {
   try {
-    logger.info('Updating user role', { tenantId, userId, newRole });
+    logger.info('Updating user role', { tenantId, userId, newRole, requestingUserId });
+
+    // Guard: ADMIN cannot change their own role (prevents self-escalation / lockout)
+    if (requestingUserId === userId) {
+      throw new AuthorizationError('You cannot change your own role');
+    }
+
+    // Guard: Only ADMIN can assign the ADMIN role
+    if (newRole === UserRole.ADMIN && requestingUserRole !== UserRole.ADMIN) {
+      throw new AuthorizationError('Only an ADMIN can assign the ADMIN role');
+    }
 
     // Check if user exists
     const existingUser = await prisma.user.findFirst({

@@ -332,7 +332,15 @@ export const updateUserRole = asyncHandler(
       return;
     }
 
-    const user = await userService.updateRole(tenantId, id, role as UserRole);
+    const requestingUserId = req.user?.id;
+    const requestingUserRole = req.user?.role;
+    if (!requestingUserId || !requestingUserRole) {
+      const response: ApiResponse = { success: false, message: 'Requesting user context not found' };
+      res.status(401).json(response);
+      return;
+    }
+
+    const user = await userService.updateRole(tenantId, id, role as UserRole, requestingUserId, requestingUserRole as any);
 
     const response: ApiResponse = {
       success: true,

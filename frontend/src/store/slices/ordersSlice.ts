@@ -4,6 +4,63 @@ import type { RootState } from '../index';
 import apiService from '../../services/api.service';
 
 /**
+ * Normalize snake_case API response to camelCase interface.
+ * Backend returns snake_case (order_number, total_amount, etc.)
+ * ordersSlice interfaces use camelCase — normalize at ingestion boundary.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const normalizeOrderItem = (item: any): OrderItem => ({
+  id: item.id,
+  partId: item.part_id ?? item.partId,
+  partNumber: item.part?.part_number ?? item.part_number ?? item.partNumber ?? '',
+  partName: item.part?.name ?? item.part_name ?? item.partName ?? '',
+  quantity: item.quantity,
+  unitPrice: Number(item.unit_price ?? item.unitPrice ?? 0),
+  discount: Number(item.discount ?? 0),
+  subtotal: Number(item.total_price ?? item.subtotal ?? 0),
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const normalizeOrder = (o: any): Order => ({
+  id: o.id,
+  tenantId: o.tenant_id ?? o.tenantId,
+  orderNumber: o.order_number ?? o.orderNumber,
+  quoteId: o.quote_id ?? o.quoteId ?? null,
+  customerId: o.customer_id ?? o.customerId,
+  vehicleId: o.vehicle_id ?? o.vehicleId ?? null,
+  status: o.status,
+  paymentStatus: o.payment_status ?? o.paymentStatus,
+  items: (o.order_items ?? o.items ?? []).map(normalizeOrderItem),
+  subtotal: Number(o.subtotal_amount ?? o.subtotal ?? 0),
+  taxAmount: Number(o.gst_amount ?? o.tax_amount ?? o.taxAmount ?? 0),
+  totalAmount: Number(o.total_amount ?? o.totalAmount ?? 0),
+  paidAmount: Number(o.paid_amount ?? o.paidAmount ?? 0),
+  notes: o.notes ?? null,
+  createdBy: o.created_by ?? o.createdBy ?? '',
+  createdAt: o.created_at ?? o.createdAt,
+  updatedAt: o.updated_at ?? o.updatedAt,
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const normalizeQuote = (q: any): Quote => ({
+  id: q.id,
+  tenantId: q.tenant_id ?? q.tenantId,
+  quoteNumber: q.quote_number ?? q.quoteNumber,
+  customerId: q.customer_id ?? q.customerId,
+  vehicleId: q.vehicle_id ?? q.vehicleId ?? null,
+  status: q.status,
+  items: (q.quote_items ?? q.items ?? []).map(normalizeOrderItem),
+  subtotal: Number(q.subtotal_amount ?? q.subtotal ?? 0),
+  taxAmount: Number(q.gst_amount ?? q.tax_amount ?? q.taxAmount ?? 0),
+  totalAmount: Number(q.total_amount ?? q.totalAmount ?? 0),
+  notes: q.notes ?? null,
+  validUntil: q.valid_until ?? q.validUntil,
+  createdBy: q.created_by ?? q.createdBy ?? '',
+  createdAt: q.created_at ?? q.createdAt,
+  updatedAt: q.updated_at ?? q.updatedAt,
+});
+
+/**
  * Orders State Interface
  * Manages quotes, orders, and sales workflow
  */
@@ -173,7 +230,8 @@ export const fetchOrders = createAsyncThunk<FetchOrdersResponse, FetchOrdersPara
       const res = await apiService.get('/orders', { params: queryParams });
       const body = res.data;
       // Normalise to { data, meta } regardless of backend envelope shape
-      const data: Order[] = body.data ?? body.items ?? body.orders ?? [];
+      const raw: unknown[] = body.data ?? body.items ?? body.orders ?? [];
+      const data: Order[] = raw.map(normalizeOrder);
       const meta: PaginationMeta = body.meta ?? {
         currentPage: body.page ?? queryParams.page,
         totalPages: body.totalPages ?? 1,
@@ -202,7 +260,8 @@ export const fetchQuotes = createAsyncThunk<FetchQuotesResponse, FetchOrdersPara
       };
       const res = await apiService.get('/quotes', { params: queryParams });
       const body = res.data;
-      const data: Quote[] = body.data ?? body.items ?? body.quotes ?? [];
+      const raw: unknown[] = body.data ?? body.items ?? body.quotes ?? [];
+      const data: Quote[] = raw.map(normalizeQuote);
       const meta: PaginationMeta = body.meta ?? {
         currentPage: body.page ?? queryParams.page,
         totalPages: body.totalPages ?? 1,
@@ -225,7 +284,7 @@ export const createQuote = createAsyncThunk<Quote, CreateQuotePayload>(
   async (quoteData, { rejectWithValue }) => {
     try {
       const res = await apiService.post('/quotes', quoteData);
-      return res.data.data ?? res.data;
+      return normalizeQuote(res.data.data ?? res.data);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create quote');
     }
@@ -241,7 +300,7 @@ export const updateQuote = createAsyncThunk<Quote, UpdateQuotePayload>(
   async ({ id, data }, { rejectWithValue }) => {
     try {
       const res = await apiService.patch(`/quotes/${id}`, data);
-      return res.data.data ?? res.data;
+      return normalizeQuote(res.data.data ?? res.data);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update quote');
     }
@@ -257,7 +316,7 @@ export const convertQuoteToOrder = createAsyncThunk<Order, string>(
   async (quoteId, { rejectWithValue }) => {
     try {
       const res = await apiService.post(`/quotes/${quoteId}/convert`);
-      return res.data.data ?? res.data;
+      return normalizeOrder(res.data.data ?? res.data);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to convert quote to order');
     }
@@ -273,7 +332,7 @@ export const createOrder = createAsyncThunk<Order, CreateOrderPayload>(
   async (orderData, { rejectWithValue }) => {
     try {
       const res = await apiService.post('/orders', orderData);
-      return res.data.data ?? res.data;
+      return normalizeOrder(res.data.data ?? res.data);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create order');
     }
@@ -289,7 +348,7 @@ export const updateOrder = createAsyncThunk<Order, UpdateOrderPayload>(
   async ({ id, data }, { rejectWithValue }) => {
     try {
       const res = await apiService.patch(`/orders/${id}`, data);
-      return res.data.data ?? res.data;
+      return normalizeOrder(res.data.data ?? res.data);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update order');
     }
@@ -305,7 +364,7 @@ export const fetchOrderById = createAsyncThunk<Order, string>(
   async (orderId, { rejectWithValue }) => {
     try {
       const res = await apiService.get(`/orders/${orderId}`);
-      return res.data.data ?? res.data;
+      return normalizeOrder(res.data.data ?? res.data);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch order');
     }
@@ -321,7 +380,7 @@ export const fetchQuoteById = createAsyncThunk<Quote, string>(
   async (quoteId, { rejectWithValue }) => {
     try {
       const res = await apiService.get(`/quotes/${quoteId}`);
-      return res.data.data ?? res.data;
+      return normalizeQuote(res.data.data ?? res.data);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch quote');
     }
@@ -337,7 +396,7 @@ export const cancelOrder = createAsyncThunk<Order, string>(
   async (orderId, { rejectWithValue }) => {
     try {
       const res = await apiService.post(`/orders/${orderId}/cancel`);
-      return res.data.data ?? res.data;
+      return normalizeOrder(res.data.data ?? res.data);
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to cancel order');
     }

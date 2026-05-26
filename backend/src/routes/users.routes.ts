@@ -60,6 +60,7 @@ router.post(
  */
 router.put(
   '/:id',
+  authorize(UserRole.ADMIN, UserRole.MANAGER),
   validateParams(commonSchemas.uuid),
   usersController.updateUser
 );
