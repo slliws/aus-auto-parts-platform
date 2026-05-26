@@ -9,6 +9,17 @@ import { OrderWithDetails } from './orders.service';
 import { logger } from '../utils/logger';
 
 export class PDFService {
+  // ─── Text safety ─────────────────────────────────────────────────────────────
+
+  /**
+   * Truncate free-text strings before rendering into PDF.
+   * Defence-in-depth: validators cap at input time; this catches any value
+   * that bypasses validation (direct DB inserts, migrations, legacy data).
+   */
+  private static truncate(text: string, max: number): string {
+    return text.length > max ? text.substring(0, max) + '… [truncated]' : text;
+  }
+
   // ─── Quote PDF ───────────────────────────────────────────────────────────────
 
   /**
@@ -157,7 +168,7 @@ export class PDFService {
       doc.fontSize(9).font('Helvetica-Bold');
       doc.text('Notes:', leftX);
       doc.font('Helvetica');
-      doc.text(quote.notes, leftX, undefined, { width: 495 });
+      doc.text(PDFService.truncate(quote.notes, 2000), leftX, undefined, { width: 495 });
     }
 
     doc.moveDown(1.5);
@@ -282,7 +293,7 @@ export class PDFService {
       doc.fontSize(9).font('Helvetica-Bold');
       doc.text('Notes:', leftX);
       doc.font('Helvetica');
-      doc.text(order.notes, leftX, undefined, { width: 495 });
+      doc.text(PDFService.truncate(order.notes, 2000), leftX, undefined, { width: 495 });
     }
 
     doc.moveDown(1.5);
@@ -390,7 +401,7 @@ export class PDFService {
     doc.text('Terms & Conditions');
     doc.moveDown(0.4);
     doc.font('Helvetica').fontSize(9);
-    doc.text(terms, { align: 'justify', width: 495 });
+    doc.text(PDFService.truncate(terms, 5000), { align: 'justify', width: 495 });
     doc.moveDown(1);
   }
 
