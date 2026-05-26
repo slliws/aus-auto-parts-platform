@@ -1,242 +1,173 @@
-# Australian Auto Parts Platform - Development Progress
+# Australian Auto Parts Platform — Development Progress
 
-## Recent Updates (November 9, 2025)
-
-### ✅ Completed Tasks
-
-#### 1. Frontend API Integration Layer
-- **Created API Service** (`frontend/src/services/api.service.ts`)
-  - Centralized Axios-based HTTP client
-  - Automatic JWT token injection via interceptors
-  - Token refresh logic for expired access tokens
-  - Comprehensive error handling with user-friendly messages
-  - Support for all HTTP methods (GET, POST, PUT, PATCH, DELETE)
-
-- **Created Authentication Service** (`frontend/src/services/auth.service.ts`)
-  - Complete authentication API integration
-  - Methods: login, register, logout, refresh token
-  - Password reset and email verification support
-  - Type-safe API responses with TypeScript
-
-- **Updated Redux Auth Slice** (`frontend/src/store/slices/authSlice.ts`)
-  - Connected to real authentication service
-  - Removed placeholder API calls
-  - Full integration with backend endpoints
-  - Proper error handling and state management
-
-#### 2. Environment Configuration
-- **Frontend Environment** (`.env`, `.env.example`)
-  - API URL configuration: `http://localhost:3000/api/v1`
-  - Development environment settings
-
-- **Backend Environment** (`.env`)
-  - PostgreSQL connection string
-  - JWT secrets for development
-  - Redis configuration
-  - CORS settings for frontend (localhost:5173)
-  - Rate limiting configuration
-  - Comprehensive logging setup
-
-#### 3. Database Setup Tools
-- **PowerShell Setup Script** (`backend/setup-database.ps1`)
-  - Automated PostgreSQL connection check
-  - Database creation if not exists
-  - Dependency installation
-  - Prisma client generation
-  - Database migration execution
-  - Optional database seeding
-  - User-friendly error messages and troubleshooting
-
-### 🚧 Current Status
-
-The platform now has:
-- ✅ Complete backend authentication system
-- ✅ Frontend-backend API integration
-- ✅ Database schema and migrations ready
-- ✅ Redux state management configured
-- ✅ Login/Register UI components
-
-### 📋 Next Steps
-
-#### Immediate (Week 1-2)
-1. **Run Database Setup**
-   ```powershell
-   cd backend
-   .\setup-database.ps1
-   ```
-
-2. **Test Backend Server**
-   ```bash
-   cd backend
-   npm run dev
-   ```
-
-3. **Test Frontend Application**
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-4. **Create First Tenant and User**
-   - Need to add seed data or admin registration endpoint
-   - Test login flow end-to-end
-
-#### Short-term (Week 2-3)
-5. **Implement Parts Inventory Management**
-   - Backend: Parts CRUD endpoints
-   - Frontend: Parts list, create, edit screens
-   - Search and filter functionality
-
-6. **Implement Customer Management**
-   - Backend: Customer CRUD endpoints
-   - Frontend: Customer list and detail screens
-
-7. **Add Vehicle Management**
-   - Backend: Vehicle intake API
-   - Mock VIN decoder service
-   - Frontend: Vehicle registration screens
-
-#### Medium-term (Week 4-6)
-8. **Build Dashboard**
-   - Sales overview
-   - Recent orders
-   - Quick actions
-   - Analytics widgets
-
-9. **Implement Search Functionality**
-   - Global parts search
-   - Advanced filters (category, vehicle, price)
-   - Search results page
-
-10. **Add Order Management**
-    - Quote generation
-    - Order processing
-    - Invoice generation
-
-### 🔍 Technical Decisions Made
-
-1. **API Architecture**
-   - RESTful design with `/api/v1` prefix
-   - JWT authentication with 1-hour access tokens
-   - 30-day refresh tokens with rotation
-   - Automatic token refresh in frontend
-
-2. **State Management**
-   - Redux Toolkit for global state
-   - Local storage for token persistence
-   - Optimistic UI updates where appropriate
-
-3. **Security**
-   - CORS configured for local development
-   - Bcrypt password hashing (12 rounds)
-   - JWT RS256 signing (configured)
-   - Row-level security in database schema
-
-4. **Development Environment**
-   - PostgreSQL 15+ (local or Docker)
-   - Redis for caching/sessions
-   - Vite for frontend build
-   - TypeScript strict mode
-
-### 📊 Project Statistics
-
-- **Backend**
-  - 18+ npm packages installed
-  - 554 lines Prisma schema (15+ models)
-  - Complete authentication system
-  - Audit logging infrastructure
-  - Multi-tenant architecture
-
-- **Frontend**
-  - React 19 + TypeScript
-  - Material-UI component library
-  - Redux Toolkit state management
-  - 30+ page/component files
-  - API service layer complete
-
-- **Documentation**
-  - 8,000+ lines of specifications
-  - Complete API documentation
-  - UI/UX wireframes
-  - Business requirements
-  - Technical architecture
-
-### 🐛 Known Issues & TODO
-
-1. **Email Service Not Implemented**
-   - Email verification returns token but doesn't send email
-   - Password reset returns token but doesn't send email
-   - Need to integrate SendGrid or similar
-
-2. **Seed Data Needed**
-   - No default tenant exists
-   - Need sample data for development
-   - Consider admin user creation endpoint
-
-3. **Frontend Missing**
-   - RegisterPage needs tenant selection
-   - Dashboard not yet implemented
-   - Parts management screens pending
-   - Customer management screens pending
-
-4. **Testing**
-   - No unit tests written yet
-   - Integration tests needed
-   - E2E test suite needed
-
-### 🎯 Success Criteria for MVP
-
-- [x] Backend API foundation
-- [x] Frontend API integration
-- [x] Authentication system
-- [ ] Database fully migrated with seed data
-- [ ] At least one tenant and user
-- [ ] Parts inventory CRUD working
-- [ ] Customer management working
-- [ ] Basic search functionality
-- [ ] Dashboard with overview
-
-### 📚 Key Files Reference
-
-**Backend:**
-- `backend/src/app.ts` - Express app configuration
-- `backend/src/services/auth.service.ts` - Authentication logic (582 lines)
-- `backend/src/controllers/auth.controller.ts` - Auth endpoints (240 lines)
-- `backend/prisma/schema.prisma` - Database schema (554 lines)
-
-**Frontend:**
-- `frontend/src/services/api.service.ts` - API client (177 lines)
-- `frontend/src/services/auth.service.ts` - Auth API (150 lines)
-- `frontend/src/store/slices/authSlice.ts` - Auth state management
-- `frontend/src/routes/index.tsx` - Application routing
-
-**Configuration:**
-- `backend/.env` - Backend environment variables
-- `frontend/.env` - Frontend environment variables
-- `backend/setup-database.ps1` - Database setup script
-
-### 🚀 Running the Application
-
-```bash
-# Terminal 1 - Backend API
-cd backend
-npm install
-.\setup-database.ps1  # First time only
-npm run dev
-
-# Terminal 2 - Frontend
-cd frontend
-npm install
-npm run dev
-
-# Access at:
-# Frontend: http://localhost:5173
-# Backend API: http://localhost:3000
-# API Docs: http://localhost:3000/api/v1
-```
+> **Last Updated:** 2026-05-26 (Orchestrator heartbeat @ 15:01 UTC)
+> **Status: Full stack complete. 4 stress tests passed. Ready for ST#5 or production decision.**
 
 ---
 
-**Last Updated:** November 9, 2025 1:14 PM AEDT  
-**Status:** API Integration Complete - Ready for Database Setup  
-**Next Milestone:** Database migration and first tenant creation
+## Architecture Overview
+
+| Layer | Technology | Status |
+|-------|-----------|--------|
+| Backend API | Node.js + Express + TypeScript + Prisma | ✅ Production-hardened |
+| Database | PostgreSQL 16 (Docker) | ✅ Running |
+| Cache | Redis 7 (Docker) | ✅ Running |
+| Frontend Web | React 19 + TypeScript + Material-UI + Redux Toolkit | ✅ Complete |
+| Mobile App | Expo React Native (TypeScript) | ✅ Complete — committed da77d4f..5c49d8d |
+| Container | Docker Compose (4 services) | ✅ Dev stack running |
+
+---
+
+## Backend — Complete Feature Set
+
+### API Routes
+- `auth.routes.ts` — JWT login/register/logout/refresh, role guards
+- `parts.routes.ts` — Full CRUD, image upload, pricing/margin
+- `vehicle.routes.ts` — VIN intake, vehicle management
+- `customers.routes.ts` — Customer CRUD + search
+- `orders.routes.ts` — Order lifecycle (PENDING→PROCESSING→SHIPPED→DELIVERED)
+- `quotes.routes.ts` — Quote generation from cart
+- `analytics.routes.ts` — Dashboard KPIs (revenue, sales, inventory, customers)
+- `search.routes.ts` — Global search across parts/vehicles/customers
+- `tenants.routes.ts` — Multi-tenant management
+- `users.routes.ts` — User management (ADMIN/MANAGER/STAFF roles)
+- `payments.routes.ts` — Payment gateway hooks
+- `messages.routes.ts` — Internal messaging
+
+### Security (post ST#1–4 hardening)
+- JWT access tokens (1h) + refresh tokens (30d) with rotation
+- Global refresh mutex — concurrent 401s no longer race (ST#4 RED#1)
+- `authorize(ADMIN, MANAGER)` on all mutating endpoints — `PUT /:id` unprotected gap closed (ST#3)
+- Role-change guards: cannot self-change role; only ADMIN can assign ADMIN
+- `VITE_API_BASE_URL` normalized — no more split-API silent failure (ST#2)
+- Rate limiting by subscription tier
+- Audit logging
+
+---
+
+## Frontend Web — Complete Feature Set (24 Pages)
+
+| Page | Feature |
+|------|---------|
+| LoginPage / RegisterPage | Auth flow |
+| DashboardPage | Live analytics KPIs |
+| PartsPage | Inventory list + CRUD |
+| ProductDetailPage | Part detail + pricing |
+| CustomersPage / CustomerDetailPage | Customer management |
+| VehiclesPage / VehicleDetailPage | Vehicle intake + history |
+| OrdersPage / OrderDetailPage | Order processing |
+| QuotesPage / QuoteDetailPage | Quote management |
+| SearchPage / SearchResultsPage | Global parts search |
+| MarketplacePage | Browse catalogue (category from Redux store) |
+| AnalyticsPage / ReportsPage | Business intelligence |
+| MessagesPage | Internal messaging |
+| UsersPage | User management (admin) |
+| HomePage / FavoritesPage | Landing + saved items |
+| ProfilePage | User profile |
+
+**Redux Slices:** auth, parts, vehicles, customers, orders, quotes, analytics, users, search, sync
+
+---
+
+## Mobile App — Complete Feature Set
+
+**Expo React Native app** — three operational modes:
+
+### 🏭 Yard Mode (`app/yard/`)
+- VIN barcode scanner (camera)
+- Vehicle intake form
+- Add-part flow: camera capture, pricing, margin calculator
+- Offline-first with sync queue
+
+### 💼 Sales Mode (`app/sales/`)
+- Live parts search with debounced customer search + AbortController (ST#4 YELLOW#8)
+- Cart: add/remove/setQuantity with out-of-stock gating
+- Quote creation → `POST /api/v1/quotes` → success modal with quote number
+- Customer search error state + Retry button
+
+### 📊 Management Mode (`app/management/`)
+- 6 live KPI cards wired to `GET /api/v1/analytics/dashboard`:
+  - Parts in Stock, Today's Orders, Today's Revenue
+  - Active Customers, Avg Order Value, Out of Stock
+- Unified error banner (analytics + pendingCount failures) — ST#4 YELLOW#7
+- Pull-to-refresh, top-3 categories, last-updated timestamp, warning colours
+
+### Auth
+- JWT with SecureStore persistence
+- Global refresh mutex — no concurrent 401 race (ST#4 RED#1)
+- logoutThunk dispatched on refresh fail (ST#4 ORANGE#5)
+
+### Offline Sync
+- Background sync queue persisted to expo-file-system (ST#4 ORANGE#3)
+- isSyncing mutex — no duplicate writes on concurrent sync triggers (ST#4 ORANGE#4)
+
+### Mobile Git
+- Committed at HEAD: `5c49d8d`
+- Mobile repo: subdirectory `/mobile/` (no GitHub remote yet — awaiting Shayne decision)
+
+---
+
+## Stress Test History
+
+| Test | Date | Result |
+|------|------|--------|
+| ST#1 | 2026-05-25 | Various early findings — resolved |
+| ST#2 | 2026-05-25 | Several API/security gaps — resolved |
+| ST#3 | 2026-05-25 | Unprotected PUT /users/:id + other — resolved |
+| ST#4 | 2026-05-26 | 2 RED + 3 ORANGE + 3 YELLOW — **all 8 resolved** |
+
+### ST#4 Findings (all resolved as of 2026-05-26 13:01 UTC)
+
+| # | Severity | Finding | Fix Commit |
+|---|----------|---------|-----------|
+| 1 | 🔴 RED | Concurrent 401 refresh race → silent logout | `8e500dd` |
+| 2 | 🔴 RED | Dead pendingCount decrement (Immer proxy bug) | `8e500dd` |
+| 3 | 🟠 ORANGE | Volatile sync queue (crash = lost offline ops) | `cff19cf` |
+| 4 | 🟠 ORANGE | Concurrent sync → duplicate writes | `cff19cf` |
+| 5 | 🟠 ORANGE | Silent logout — no dispatch on refresh fail | `cff19cf` |
+| 6 | 🟡 YELLOW | quotesSlice dead `?? 20` limit fallback | `4f01310` |
+| 7 | 🟡 YELLOW | ManagementScreen split KPI fetch, silent failure | `4f01310` |
+| 8 | 🟡 YELLOW | Cart local state search — unmount race + no error UX | `4f01310` |
+
+---
+
+## Infrastructure
+
+- **Docker Compose (dev):** 4 containers — backend (ts-node-dev :3000), frontend (Vite :5173), PostgreSQL 16, Redis 7
+- **Server:** MiniPC Pi at 192.168.0.133 / Tailscale 100.66.254.52
+- **NVMe:** 457GB total, 19% used — VS-Projects + .openclaw live here (plenty of room)
+- **Root overlay:** 54GB, 74% — stable, no emergency
+
+---
+
+## Pending Decisions (Shayne)
+
+1. **Mobile GitHub repo** — Should mobile app get its own private GitHub remote?
+2. **Stress Test #5** — Awaiting devils-advocate to initiate
+3. **Production deployment** — Docker prod config ready in `DOCKER_DEPLOYMENT.md`
+4. **Snap cleanup** — Firefox + GNOME stack on headless Pi (~3GB); `sudo snap remove firefox gnome-42-2204 gnome-46-2404 gtk-common-themes mesa-2404`
+5. **Journal vacuum** — `journalctl --vacuum-size=50M` (currently 253MB)
+6. **Ollama** — 3.5GB CUDA libs installed but no models loaded; remove if not needed
+
+---
+
+## Quick Reference
+
+```bash
+# Start the stack
+cd /home/pi/VS-Projects/gaming/aus-auto-parts-platform
+docker-compose up -d
+
+# Check status
+docker ps
+
+# Backend logs
+docker logs aus-auto-parts-backend-dev -f
+
+# Access
+# Web:     http://100.66.254.52:5173
+# API:     http://100.66.254.52:3000/api/v1
+
+# Git log
+git log --oneline -10
+```
